@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS opportunities (
                       CHECK (origen IN ('descubierta', 'publicada')),
   org_id            UUID REFERENCES orgs(id) ON DELETE SET NULL,
   -- Una oportunidad patrocinada se marca en la interfaz y NUNCA altera su
-  -- match_score ni su nivel de confianza.
+  -- compatibilidad ni su nivel de confianza.
   sponsored         BOOLEAN NOT NULL DEFAULT FALSE,
 
   estado            TEXT NOT NULL DEFAULT 'vigente'
@@ -98,8 +98,12 @@ CREATE TABLE IF NOT EXISTS matches (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   opportunity_id  UUID NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
-  match_score     INTEGER NOT NULL CHECK (match_score BETWEEN 0 AND 100),
-  por_que_calza   TEXT NOT NULL,
+  compatibilidad  INTEGER NOT NULL CHECK (compatibilidad BETWEEN 0 AND 100),
+  -- Razones y brechas son arreglos, no prosa: el usuario las lee escaneando y
+  -- las brechas alimentan el checklist de la oportunidad. Guardarlas como un
+  -- parrafo obligaria a volver a partirlas en la interfaz.
+  razones         TEXT[] NOT NULL DEFAULT '{}',
+  brechas         TEXT[] NOT NULL DEFAULT '{}',
   elegible        BOOLEAN NOT NULL DEFAULT TRUE,
   estado          TEXT NOT NULL DEFAULT 'nuevo'
                     CHECK (estado IN ('nuevo', 'visto', 'guardado', 'descartado')),
@@ -108,8 +112,50 @@ CREATE TABLE IF NOT EXISTS matches (
   UNIQUE (user_id, opportunity_id)
 );
 
+-- --- Migracion de `matches` ------------------------------------------------
+--
+-- El CREATE de arriba es un no-op sobre una base que ya existe, asi que un
+-- cambio sobre una tabla ya creada tiene que venir aca. Cada bloque comprueba
+-- su propia condicion: aplicar el esquema dos veces no cambia nada.
+--
+-- Va ANTES del indice a proposito. Postgres resuelve las columnas al analizar
+-- un CREATE INDEX, incluso con IF NOT EXISTS, asi que si el renombre corriera
+-- despues, el indice fallaria contra una base vieja.
+--
+-- Cuando el esquema necesite cambios que no se puedan expresar asi, toca
+-- versionar de verdad.
+
+-- match_score -> compatibilidad
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'matches' AND column_name = 'match_score'
+  ) THEN
+    ALTER TABLE matches RENAME COLUMN match_score TO compatibilidad;
+  END IF;
+END $$;
+
+-- por_que_calza (prosa) -> razones (arreglo). El texto que ya existia se
+-- conserva como un unico elemento: perderlo obligaria a repuntuar todo.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'matches' AND column_name = 'por_que_calza'
+  ) THEN
+    ALTER TABLE matches ADD COLUMN IF NOT EXISTS razones TEXT[] NOT NULL DEFAULT '{}';
+    UPDATE matches SET razones = ARRAY[por_que_calza]
+      WHERE por_que_calza IS NOT NULL AND cardinality(razones) = 0;
+    ALTER TABLE matches DROP COLUMN por_que_calza;
+  END IF;
+END $$;
+
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS razones TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS brechas TEXT[] NOT NULL DEFAULT '{}';
+
 CREATE INDEX IF NOT EXISTS idx_matches_ranking
-  ON matches (user_id, match_score DESC);
+  ON matches (user_id, compatibilidad DESC);
 
 -- ---------------------------------------------------------------------------
 -- Telemetria de producto. Sin esto, los reportes de marca empleadora y de

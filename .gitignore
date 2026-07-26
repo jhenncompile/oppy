@@ -7,7 +7,9 @@ dist/
 .vscode/
 .idea/
 
-# Configuracion local del asistente: no es parte del proyecto.
-.claude/
+# Configuracion local del asistente. Las skills SI se versionan: son las reglas
+# de trabajo del equipo y quien clone el repo tiene que tenerlas.
+.claude/*
+!.claude/skills/
 CLAUDE.md
 

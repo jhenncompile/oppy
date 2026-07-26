@@ -21,6 +21,9 @@ Diseño: https://www.figma.com/design/q2aCurFwPXUrLeJKEX3Gl1/Oppy
 | 5 | [Desarrollo](05-desarrollo.md) | Stack, riesgos, guion del pitch |
 | 6 | [Modelo de negocio](06-modelo-negocio.md) | Índice compartido + qué se le vende a las empresas |
 | 7 | [Plan de ejecución](07-plan-ejecucion.md) | Hitos H0–H8 con condición de "hecho" |
+| 8 | [Casos de uso](08-casos-de-uso.md) | Los 4 actores, qué decide el agente en cada caso, qué existe hoy |
+| 9 | [Flujo del producto](09-flujo-producto.md) | Lo que el usuario vive: onboarding, tablero, seguimiento, calendario |
+| 10 | [Contrato del agente](10-contrato-agente.md) | Qué recibe, qué hace y qué devuelve. Se lee sin saber nada de la interfaz |
 
 ## Las cuatro decisiones que definen el producto
 
@@ -28,7 +31,7 @@ Atraviesan todas las fases; si alguna se rompe, se rompe Oppy.
 
 1. **Demostrar agencia, no búsqueda.** El jurado — y el usuario — tienen que
    ver que el LLM *decide*. Eso se ve en dos cosas concretas de interfaz:
-   los logs de proceso en vivo y el campo `por_que_calza` en cada resultado.
+   los logs de proceso en vivo y las `razones` de cada resultado.
    Son decisiones de diseño, no de backend.
 2. **Veracidad como feature, no como disclaimer.** El semáforo de confianza
    (🟢 oficial / 🟡 comunitario / 🔴 desactualizado) es la diferenciación
@@ -39,6 +42,21 @@ Atraviesan todas las fases; si alguna se rompe, se rompe Oppy.
    de un negocio. Ver [modelo de negocio](06-modelo-negocio.md).
 4. **Accesibilidad como parte del producto.** Si Oppy existe para cerrar una
    brecha de acceso, la interfaz no puede abrir otra.
+5. **Producto y agente son dos lados de una frontera.** El frontend construye el
+   perfil y presenta; el agente busca, razona y recomienda. El usuario nunca
+   siente que habla con varios agentes: usa Oppy, y por detrás los agentes
+   trabajan. Ver [flujo del producto](09-flujo-producto.md) y
+   [contrato del agente](10-contrato-agente.md).
+
+## El producto no es un buscador
+
+Después del onboarding, **el usuario no vuelve a buscar**. El centro de Oppy es
+un tablero personal que se actualiza solo: el agente descubre, evalúa y avisa; la
+persona revisa, organiza y decide a cuáles darle seguimiento.
+
+La diferencia no es estética. Un buscador se juzga por sus resultados; un agente
+se juzga por lo que hace cuando nadie lo está mirando — y eso es exactamente lo
+que evalúa el track.
 
 ## Doble narrativa, un solo producto
 

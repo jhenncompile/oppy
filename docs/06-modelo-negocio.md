@@ -56,7 +56,7 @@ perfiles que efectivamente califican.
 
 La empresa describe el perfil que necesita y **el mismo motor corre al
 revés**: razona sobre los perfiles que dieron consentimiento y devuelve
-candidatos con su `por_que_calza`.
+candidatos con sus `razones`.
 
 Diferencia frente a LinkedIn Recruiter: razona sobre elegibilidad real —
 no keywords — y alcanza gente que no tiene un perfil profesional armado.
@@ -109,7 +109,7 @@ beneficiarios. Modelo B2B2C, licencia anual por institución.
 
 - **Datos personales identificables.** El matching inverso muestra
   candidatos solo con consentimiento explícito y revocable.
-- **Ranking.** El `match_score` responde al perfil de la persona, jamás a
+- **Ranking.** La `compatibilidad` responde al perfil de la persona, jamás a
   quién pagó. Una oportunidad patrocinada se marca visualmente y no altera
   su puntaje ni su nivel de confianza.
 
@@ -146,7 +146,7 @@ opportunities           -- índice global
   fecha_extraida, estado ('vigente'|'vencida'), hash_dedupe (unique)
 
 matches
-  id, user_id, opportunity_id, match_score, por_que_calza,
+  id, user_id, opportunity_id, compatibilidad, razones[], brechas[],
   estado ('nuevo'|'visto'|'guardado'|'descartado'), created_at
 
 events                  -- impresión, clic, guardado → reportes B2B

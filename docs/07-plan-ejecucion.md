@@ -40,8 +40,9 @@ Explorador completo (Exa + Firecrawl en paralelo) → normalizador con
 fuente y fecha en la base.
 
 ## H3 — Razonamiento
-Servicio de scoring **simétrico** `(perfil, oportunidad)` → `match_score` +
-`por_que_calza` → tabla `matches`. Módulo de confianza clasificando fuentes.
+Servicio de scoring **simétrico** `(perfil, oportunidad)` → `compatibilidad`,
+`razones[]` y `brechas[]` → tabla `matches`. Módulo de confianza clasificando
+fuentes.
 
 *Hecho cuando:* con 3 perfiles distintos, los top-5 son creíbles y la
 justificación resiste una lectura crítica.

@@ -95,7 +95,7 @@ Normalizador ── LLM → esquema comun + skills[] + dedupe por hash
 INDICE COMPARTIDO (opportunities)  ◄──── cron diario
       │
       ▼
-Analista ── razona elegibilidad real → match_score + por_que_calza
+Analista ── razona elegibilidad real → compatibilidad + razones + brechas
       │
       ▼
 matches (por persona) ──► Dashboard + stream de progreso en vivo (SSE)

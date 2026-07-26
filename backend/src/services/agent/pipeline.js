@@ -8,6 +8,7 @@ import * as matchRepository from '../../repositories/matchRepository.js';
 import * as agentRunRepository from '../../repositories/agentRunRepository.js';
 import { planificar } from './orchestrator.js';
 import { normalizar } from './normalizer.js';
+import { oportunidadesDemo, evaluarDemo } from './demo.js';
 import * as runTracker from './runTracker.js';
 
 const log = logger.child({ module: 'pipeline' });
@@ -66,28 +67,11 @@ async function correr({ perfil, corrida, disparador }) {
       categorias: plan.categorias
     });
 
-    // 2. Ejecutar la busqueda sobre todas las fuentes, en paralelo
-    paso({ tipo: 'descubrimiento_inicio', mensaje: 'Rastreando fuentes' });
-    const documentos = await descubrir(plan, paso);
-    paso({
-      tipo: 'descubrimiento_fin',
-      mensaje: `${documentos.length} paginas recuperadas`,
-      total: documentos.length
-    });
-
-    // 3. Normalizar al esquema comun
-    paso({ tipo: 'normalizacion_inicio', mensaje: 'Leyendo y estructurando convocatorias' });
-    const lotes = await mapExitosos(
-      documentos,
-      CONCURRENCIA_NORMALIZACION,
-      (documento) => normalizar(documento)
-    );
-    const oportunidades = lotes.flat();
-    paso({
-      tipo: 'normalizacion_fin',
-      mensaje: `${oportunidades.length} oportunidades extraidas`,
-      total: oportunidades.length
-    });
+    // 2 y 3. Conseguir oportunidades: rastreando el mundo real, o del catalogo
+    // de demo cuando no hay claves de scraping ni modelo servido.
+    const oportunidades = env.demoMode
+      ? deCatalogoDemo(paso)
+      : await descubrirYNormalizar(plan, paso);
 
     // 4. Alimentar el indice compartido
     const nuevas = await guardarEnIndice(oportunidades);
@@ -95,7 +79,11 @@ async function correr({ perfil, corrida, disparador }) {
 
     // 5. Razonar sobre compatibilidad
     paso({ tipo: 'scoring_inicio', mensaje: 'Evaluando cuales son para vos' });
-    const matches = await puntuarParaPerfil(perfil, plan.categorias);
+    const matches = await puntuarParaPerfil(
+      perfil,
+      plan.categorias,
+      env.demoMode ? evaluarDemo : evaluarSeguro
+    );
     paso({
       tipo: 'scoring_fin',
       mensaje: `${matches.length} oportunidades compatibles`,
@@ -129,6 +117,54 @@ async function correr({ perfil, corrida, disparador }) {
   }
 }
 
+/** El camino real: rastrear las fuentes y estructurar lo recuperado. */
+async function descubrirYNormalizar(plan, paso) {
+  paso({ tipo: 'descubrimiento_inicio', mensaje: 'Rastreando fuentes' });
+  const documentos = await descubrir(plan, paso);
+  paso({
+    tipo: 'descubrimiento_fin',
+    mensaje: `${documentos.length} paginas recuperadas`,
+    total: documentos.length
+  });
+
+  paso({ tipo: 'normalizacion_inicio', mensaje: 'Leyendo y estructurando convocatorias' });
+  const lotes = await mapExitosos(
+    documentos,
+    CONCURRENCIA_NORMALIZACION,
+    (documento) => normalizar(documento)
+  );
+  const oportunidades = lotes.flat();
+  paso({
+    tipo: 'normalizacion_fin',
+    mensaje: `${oportunidades.length} oportunidades extraidas`,
+    total: oportunidades.length
+  });
+
+  return oportunidades;
+}
+
+/**
+ * El atajo de desarrollo. Narra los mismos pasos — la pantalla de proceso en
+ * vivo se ve igual — pero deja dicho que son datos de ejemplo: una demo que se
+ * confunde con la real es peor que no tener demo.
+ */
+function deCatalogoDemo(paso) {
+  paso({ tipo: 'descubrimiento_inicio', mensaje: 'Modo demo: catalogo de ejemplo, sin rastreo' });
+  const oportunidades = oportunidadesDemo();
+  paso({
+    tipo: 'descubrimiento_fin',
+    mensaje: `${oportunidades.length} convocatorias de ejemplo`,
+    total: oportunidades.length
+  });
+  paso({
+    tipo: 'normalizacion_fin',
+    mensaje: `${oportunidades.length} oportunidades listas`,
+    total: oportunidades.length
+  });
+
+  return oportunidades;
+}
+
 async function guardarEnIndice(oportunidades) {
   let nuevas = 0;
 
@@ -152,7 +188,7 @@ async function guardarEnIndice(oportunidades) {
  * que la persona no haya evaluado antes. Es la diferencia entre un costo
  * marginal de centavos y uno de dolares por usuario.
  */
-async function puntuarParaPerfil(perfil, categorias) {
+async function puntuarParaPerfil(perfil, categorias, evaluador) {
   const [candidatas, yaEvaluadas] = await Promise.all([
     opportunityRepository.findCandidatas({
       categorias,
@@ -167,7 +203,7 @@ async function puntuarParaPerfil(perfil, categorias) {
     pendientes,
     CONCURRENCIA_SCORING,
     async (oportunidad) => {
-      const evaluacion = await evaluarSeguro(perfil, oportunidad);
+      const evaluacion = await evaluador(perfil, oportunidad);
       if (!evaluacion) return null;
 
       return matchRepository.upsert({

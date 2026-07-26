@@ -5,8 +5,9 @@ function toDomain(row) {
   return {
     id: row.id,
     userId: row.user_id,
-    matchScore: row.match_score,
-    porQueCalza: row.por_que_calza,
+    compatibilidad: row.compatibilidad,
+    razones: row.razones,
+    brechas: row.brechas,
     elegible: row.elegible,
     estado: row.estado,
     createdAt: row.created_at,
@@ -39,15 +40,23 @@ const SELECT_CON_OPORTUNIDAD = `
 
 export async function upsert(match) {
   const row = await queryOne(
-    `INSERT INTO matches (user_id, opportunity_id, match_score, por_que_calza, elegible)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO matches (user_id, opportunity_id, compatibilidad, razones, brechas, elegible)
+     VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (user_id, opportunity_id) DO UPDATE SET
-       match_score   = EXCLUDED.match_score,
-       por_que_calza = EXCLUDED.por_que_calza,
-       elegible      = EXCLUDED.elegible,
-       updated_at    = now()
+       compatibilidad = EXCLUDED.compatibilidad,
+       razones        = EXCLUDED.razones,
+       brechas        = EXCLUDED.brechas,
+       elegible       = EXCLUDED.elegible,
+       updated_at     = now()
      RETURNING *`,
-    [match.userId, match.opportunityId, match.matchScore, match.porQueCalza, match.elegible]
+    [
+      match.userId,
+      match.opportunityId,
+      match.compatibilidad,
+      match.razones ?? [],
+      match.brechas ?? [],
+      match.elegible
+    ]
   );
   return toDomain(row);
 }
@@ -61,9 +70,9 @@ export async function findByUser(userId, { minScore = 0, limit = 20 } = {}) {
     `${SELECT_CON_OPORTUNIDAD}
      WHERE m.user_id = $1
        AND m.estado <> 'descartado'
-       AND m.match_score >= $2
+       AND m.compatibilidad >= $2
        AND o.estado = 'vigente'
-     ORDER BY m.match_score DESC, o.fecha_limite ASC NULLS LAST
+     ORDER BY m.compatibilidad DESC, o.fecha_limite ASC NULLS LAST
      LIMIT $3`,
     [userId, minScore, limit]
   );

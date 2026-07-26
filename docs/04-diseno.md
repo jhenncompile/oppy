@@ -38,7 +38,7 @@ en curso, completada, fallida) y qué pasa si una fuente no responde.
 
 ### P3 — Resultados
 
-Lista ordenada por `match_score`, con contador ("12 oportunidades para vos")
+Lista ordenada por `compatibilidad`, con contador ("12 oportunidades para vos")
 y filtros por categoría. La card es el componente estrella del producto.
 
 ### P4 — Detalle de oportunidad
@@ -69,9 +69,12 @@ Todo lo que diferencia a Oppy tiene que caber acá:
 │                                                 │
 │ ▓▓▓▓▓▓▓▓▓░  92% compatible                      │
 │                                                 │
-│ 💡 Calza con vos porque estudiás Ing. de        │
-│    Sistemas, pide 4º año o superior y tu        │
-│    inglés B2 cumple el requisito mínimo.        │
+│ POR QUÉ CALZA CON VOS                           │
+│  ✓ Pide 4º año o superior, y estás ahí          │
+│  ✓ Tu inglés B2 cumple el mínimo que exige      │
+│  ✓ Prioriza carreras STEM, como la tuya         │
+│ PARA POSTULAR TE FALTA                          │
+│  ○ Certificado de promedio 70/100               │
 │                                                 │
 │              [ Ver detalle ]  [ ♡ Guardar ]     │
 └────────────────────────────────────────────────┘
@@ -79,11 +82,65 @@ Todo lo que diferencia a Oppy tiene que caber acá:
 
 Jerarquía deliberada: la señal de confianza y el deadline arriba (lo que
 genera urgencia y credibilidad), el score como barra + número, y el
-`por_que_calza` con peso visual propio — no como letra chica. Ese bloque es
-la salida del razonamiento del LLM y debe leerse como tal.
+las `razones` con peso visual propio — no como letra chica. Ese bloque es
+la salida del razonamiento del LLM y debe leerse como tal. Las `brechas` van
+justo debajo, separadas: son lo que la persona puede accionar, y alimentan el
+checklist de la oportunidad.
 
 Variantes a modelar: confianza (3) × urgencia de deadline (normal / próximo
 / vencido) × estado (default / guardada / descartada).
+
+## Paleta
+
+Fuente de verdad de los valores. Está acá **además** de en Figma y en
+`frontend/src/styles/tokens.css` porque una paleta que solo vive en un archivo
+de diseño se pierde en cuanto alguien no lo tiene abierto.
+
+Escalas de 12 pasos. El paso indica el uso, no la oscuridad: `1–2` fondos ·
+`3–5` componentes interactivos · `6–8` bordes y separadores · `9–10` sólidos ·
+`11–12` texto accesible.
+
+| Paso | Acento | Gris | | Paso | Acento | Gris |
+|---|---|---|---|---|---|---|
+| 1 | `#f6f9fa` | `#f8f8f9` | | 7 | `#8ac3de` | `#c7c9d1` |
+| 2 | `#eff5f9` | `#f4f5f7` | | 8 | `#5badd1` | `#b3b5c1` |
+| 3 | `#def0f9` | `#ebebef` | | 9 | `#49a0c5` | `#868893` |
+| 4 | `#cde9f7` | `#e2e3e8` | | 10 | `#3c94b8` | `#7b7d87` |
+| 5 | `#bae0f2` | `#dbdce1` | | 11 | `#0d7396` | `#5d5f67` |
+| 6 | `#a5d3ea` | `#d3d4db` | | 12 | `#1a3b4a` | `#1e1f24` |
+
+Fondo de página: `#fffafa` — el blanco cálido que da el carácter de la
+referencia visual.
+
+Cada escala tiene su variante alpha (`--blue-a1` … `--gray-a12`), para tintar
+sobre superficies que no son el fondo de página. Los valores están en
+`tokens.css`.
+
+**Lo que esta paleta todavía no cubre:**
+
+- **Modo oscuro** — la exportación trajo solo el modo claro. Las escalas
+  oscuras de `tokens.css` son las de arranque y no son la contraparte de estas.
+- **Semáforo de confianza** — verde, ámbar y rojo siguen con los valores de
+  arranque. Son los tres colores que más peso comunican en el producto, así que
+  conviene definirlos a propósito y no heredarlos.
+
+### Contraste verificado
+
+Medido sobre `--surface-card` (`#f8f8f9`), que es el fondo real de los paneles:
+
+| Uso | Color | Contraste | AA |
+|---|---|---|---|
+| Texto principal | gris 12 | 15.6:1 | ✅ |
+| Texto secundario | gris 11 | 6.0:1 | ✅ |
+| Texto de acento | acento 11 | 5.1:1 | ✅ |
+| Texto atenuado | gris 10 | 3.9:1 | ⚠️ solo texto grande |
+| Blanco sobre botón sólido | acento 9 | 2.9:1 | ❌ |
+
+Los dos últimos son deuda conocida, no un descuido de la paleta: el paso 9 de
+una escala está pensado para rellenos, no para llevar texto encima. El arreglo
+es de una línea — apuntar `--accent-solid` al paso 11 para los botones que
+llevan texto — pero cambia el aspecto del botón primario, así que es decisión
+de diseño y no se toma en un diff.
 
 ## Fundaciones (hacer primero)
 

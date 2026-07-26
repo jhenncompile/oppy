@@ -5,9 +5,10 @@ import { logger } from '../../utils/logger.js';
 const log = logger.child({ module: 'matcher' });
 
 const evaluacionSchema = z.object({
-  match_score: z.number().int().min(0).max(100),
+  compatibilidad: z.number().int().min(0).max(100),
   elegible: z.boolean(),
-  por_que_calza: z.string().min(10).max(600)
+  razones: z.array(z.string().min(4).max(200)).min(1).max(5),
+  brechas: z.array(z.string().min(3).max(200)).max(5).default([])
 });
 
 const SISTEMA = `Sos un evaluador de compatibilidad entre personas y oportunidades
@@ -24,9 +25,16 @@ Criterio de puntaje:
   30-59   le podria servir, pero hay un requisito dudoso o faltante
   0-29    no califica
 
-En "por_que_calza" explica en 1 o 2 frases, en segunda persona y en espanol
-rioplatense neutro, POR QUE calza o por que no. Menciona el requisito concreto
-que motivo el puntaje. Nunca inventes requisitos que no esten en la convocatoria.
+En "razones" devolve entre 1 y 3 motivos concretos, uno por elemento, en segunda
+persona y en espanol rioplatense neutro. Cada razon es una frase corta que
+menciona un requisito concreto de la convocatoria y por que el perfil lo cumple
+o no. Nada de generalidades como "es una buena oportunidad".
+
+En "brechas" devolve lo que le falta a la persona para poder postular, uno por
+elemento y accionable — "certificado de ingles B1", no "mejorar el ingles". Si
+no le falta nada, devolve una lista vacia.
+
+Nunca inventes requisitos que no esten en la convocatoria.
 
 Responde solo con JSON.`;
 
@@ -61,11 +69,11 @@ export async function evaluar(perfil, oportunidad, { perspectiva = 'persona' } =
     oportunidad.descripcion ? `Descripcion: ${oportunidad.descripcion}` : null,
     '',
     perspectiva === 'organizacion'
-      ? 'Escribi "por_que_calza" dirigido a la organizacion que busca al candidato.'
-      : 'Escribi "por_que_calza" dirigido a la persona, tratandola de vos.',
+      ? 'Escribi "razones" dirigidas a la organizacion que busca al candidato.'
+      : 'Escribi "razones" dirigidas a la persona, tratandola de vos.',
     '',
     'Devolve JSON con esta forma exacta:',
-    '{"match_score":0,"elegible":false,"por_que_calza":""}'
+    '{"compatibilidad":0,"elegible":false,"razones":[""],"brechas":[""]}'
   ].filter(Boolean).join('\n');
 
   const resultado = await completeJson({
@@ -76,9 +84,10 @@ export async function evaluar(perfil, oportunidad, { perspectiva = 'persona' } =
   });
 
   return {
-    matchScore: resultado.match_score,
+    compatibilidad: resultado.compatibilidad,
     elegible: resultado.elegible,
-    porQueCalza: resultado.por_que_calza.trim()
+    razones: resultado.razones.map((razon) => razon.trim()),
+    brechas: resultado.brechas.map((brecha) => brecha.trim())
   };
 }
 

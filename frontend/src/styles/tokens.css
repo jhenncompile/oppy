@@ -12,37 +12,78 @@
  * Regla: los componentes NUNCA usan un primitivo directamente.
  * ------------------------------------------------------------------------- */
 
-/* == 1. Primitivos — claro ================================================= */
+/* == 1. Primitivos — claro =================================================
+ *
+ * Escalas de 12 pasos exportadas del archivo de Figma. El paso dice para que
+ * sirve el color, no cuan oscuro es:
+ *
+ *   1–2    fondos
+ *   3–5    componentes interactivos (reposo, hover, activo)
+ *   6–8    bordes y separadores
+ *   9–10   colores solidos
+ *   11–12  texto accesible
+ *
+ * Las variantes `a` son las mismas escalas en alpha, para tintar sobre un
+ * fondo que no es el de la pagina sin recalcular el color.
+ * ------------------------------------------------------------------------- */
 :root,
 .light,
 .light-theme {
-  --blue-1: #fafdfe;
-  --blue-2: #f3fafd;
-  --blue-3: #e2f5fe;
-  --blue-4: #d1eefc;
-  --blue-5: #bfe5f7;
-  --blue-6: #abd9ef;
-  --blue-7: #8fc9e4;
-  --blue-8: #61b2d6;
+  --blue-1: #f6f9fa;
+  --blue-2: #eff5f9;
+  --blue-3: #def0f9;
+  --blue-4: #cde9f7;
+  --blue-5: #bae0f2;
+  --blue-6: #a5d3ea;
+  --blue-7: #8ac3de;
+  --blue-8: #5badd1;
   --blue-9: #49a0c5;
   --blue-10: #3c94b8;
-  --blue-11: #17789c;
+  --blue-11: #0d7396;
   --blue-12: #1a3b4a;
   --blue-contrast: #fff;
 
-  --gray-1: #fcfcfd;
-  --gray-2: #f9f9fb;
-  --gray-3: #eff0f3;
-  --gray-4: #e7e8ec;
-  --gray-5: #e0e1e6;
-  --gray-6: #d8d9e0;
-  --gray-7: #cdced7;
-  --gray-8: #b9bbc6;
-  --gray-9: #8b8d98;
-  --gray-10: #80828d;
-  --gray-11: #62636c;
+  --blue-a1: #00defa09;
+  --blue-a2: #00abeb10;
+  --blue-a3: #00adf321;
+  --blue-a4: #00a4eb32;
+  --blue-a5: #009add45;
+  --blue-a6: #018ccd5a;
+  --blue-a7: #0083bd75;
+  --blue-a8: #0083bba4;
+  --blue-a9: #007bafb6;
+  --blue-a10: #0075a4c3;
+  --blue-a11: #006c90f2;
+  --blue-a12: #002637e5;
+
+  --gray-1: #f8f8f9;
+  --gray-2: #f4f5f7;
+  --gray-3: #ebebef;
+  --gray-4: #e2e3e8;
+  --gray-5: #dbdce1;
+  --gray-6: #d3d4db;
+  --gray-7: #c7c9d1;
+  --gray-8: #b3b5c1;
+  --gray-9: #868893;
+  --gray-10: #7b7d87;
+  --gray-11: #5d5f67;
   --gray-12: #1e1f24;
 
+  --gray-a1: #00b2d607;
+  --gray-a2: #0087b50b;
+  --gray-a3: #003b6e14;
+  --gray-a4: #00305c1d;
+  --gray-a5: #00264924;
+  --gray-a6: #001e472c;
+  --gray-a7: #001b4038;
+  --gray-a8: #00133b4c;
+  --gray-a9: #000a2179;
+  --gray-a10: #00081c84;
+  --gray-a11: #000713a2;
+  --gray-a12: #000208e1;
+
+  /* El semaforo de confianza no vino en la exportacion de Figma: estos siguen
+   * siendo los valores de arranque. Ver docs/04-diseno.md. */
   --green-3: #e6f6eb;
   --green-6: #adddc0;
   --green-9: #30a46c;
@@ -61,7 +102,13 @@
   --color-background: #fffafa;
 }
 
-/* == 1b. Primitivos — oscuro =============================================== */
+/* == 1b. Primitivos — oscuro ===============================================
+ *
+ * PENDIENTE: la exportacion de Figma solo trajo el modo claro. Estas escalas
+ * siguen siendo las de arranque y no son la contraparte oscura de las de
+ * arriba — el acento oscuro es otro azul. Reemplazar cuando el archivo de
+ * Figma tenga la coleccion Dark.
+ * ------------------------------------------------------------------------- */
 .dark,
 .dark-theme {
   --blue-1: #0c111c;

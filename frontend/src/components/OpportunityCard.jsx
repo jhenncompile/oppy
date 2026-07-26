@@ -57,7 +57,7 @@ export function OpportunityCard({ match, onGuardar, onAbrir }) {
         </p>
       </div>
 
-      <ScoreBar score={match.matchScore} />
+      <ScoreBar score={match.compatibilidad} />
 
       {/* La salida visible del razonamiento del agente. No es letra chica:
           es la prueba de que el modelo decidio y no solo listo resultados. */}
@@ -65,9 +65,32 @@ export function OpportunityCard({ match, onGuardar, onAbrir }) {
         <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-accent">
           Por que calza con vos
         </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
-          {match.porQueCalza}
-        </p>
+        <ul className="mt-2 flex flex-col gap-1.5">
+          {match.razones?.map((razon) => (
+            <li key={razon} className="flex gap-2 text-sm leading-relaxed text-ink-secondary">
+              {/* El icono acompana al texto, nunca lo reemplaza: el estado
+                  tiene que entenderse tambien leido por un lector de pantalla. */}
+              <span aria-hidden="true" className="text-trust-verified-text">✓</span>
+              <span>{razon}</span>
+            </li>
+          ))}
+        </ul>
+
+        {match.brechas?.length > 0 && (
+          <div className="mt-4 border-t border-line-subtle pt-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
+              Para postular te falta
+            </p>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {match.brechas.map((brecha) => (
+                <li key={brecha} className="flex gap-2 text-sm leading-relaxed text-ink-secondary">
+                  <span aria-hidden="true" className="text-ink-muted">○</span>
+                  <span>{brecha}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <footer className="flex items-center justify-end gap-2">

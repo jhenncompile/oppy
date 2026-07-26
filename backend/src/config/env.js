@@ -26,7 +26,12 @@ const schema = z.object({
   MAX_SCORING_PER_RUN: z.coerce.number().int().positive().default(40),
 
   CRON_ENABLED: z.enum(['true', 'false']).default('false'),
-  CRON_SCHEDULE: z.string().default('0 6 * * *')
+  CRON_SCHEDULE: z.string().default('0 6 * * *'),
+
+  // Reemplaza descubrimiento y evaluacion por datos de ejemplo: permite ver la
+  // interfaz completa sin claves de scraping ni modelo servido. Solo para
+  // desarrollo — `render.yaml` no define la variable.
+  DEMO_MODE: z.enum(['true', 'false']).default('false')
 });
 
 const parsed = schema.safeParse(process.env);
@@ -46,6 +51,7 @@ export const env = {
   isDevelopment: raw.NODE_ENV === 'development',
   databaseSsl: raw.DATABASE_SSL === 'true',
   cronEnabled: raw.CRON_ENABLED === 'true',
+  demoMode: raw.DEMO_MODE === 'true',
   /** Las capacidades opcionales se degradan solas si falta la key. */
   features: {
     exa: raw.EXA_API_KEY.length > 0,

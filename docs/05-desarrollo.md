@@ -44,7 +44,7 @@ siempre está permitido y conviene tener listo:
 | **H0–H2** | Repos, deploy vacío en Render y Netlify, DB conectada, contrato de API acordado | Frontend y backend desplegados y hablándose |
 | **H2–H6** | **Esqueleto vertical**: perfil hardcodeado → 1 fuente → LLM → 1 card | 🚩 Fin a fin funcionando, aunque sea feo |
 | **H6–H10** | Explorador completo (Exa + Firecrawl, paralelo) + normalización + dedupe | ≥20 oportunidades reales en DB |
-| **H10–H14** | Scoring con `por_que_calza` + módulo de confianza | Top-5 con justificación creíble en 3 perfiles distintos |
+| **H10–H14** | Scoring con `razones[]` y `brechas[]` + módulo de confianza | Top-5 con justificación creíble en 3 perfiles distintos |
 | **H14–H18** | Dashboard real según Figma: onboarding, proceso en vivo, cards, detalle, estados | 🚩 Demo presentable end-to-end |
 | **H18–H20** | Cron en Render corriendo para 2 usuarios demo | Log visible del job ejecutado solo |
 | **H20–H22** | Bonus (voz/audio) **solo si los dos 🚩 están verdes** · README · deploy final | — |
@@ -77,7 +77,7 @@ a una lista de "roadmap" que se menciona en el pitch, no al código.
    con la frase humana: "no es falta de mérito, es falta de descubrimiento".
 2. **(30s) Onboarding** — perfil en vivo (por voz si el bonus entró).
 3. **(90s) Demo** — click en Buscar → **pantalla de proceso narrando** →
-   resultados con score y `por_que_calza` → abrir una card y mostrar
+   resultados con compatibilidad y `razones` → abrir una card y mostrar
    confianza + fuente + fecha.
 4. **(60s) Autonomía** — el cron corriendo en Render. "Esto ya funcionó
    mientras yo hablaba."

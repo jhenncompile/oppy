@@ -23,7 +23,7 @@ Esto es lo que separa a Oppy de un chatbot con buscador:
 3. **Ejecuta** — dispara búsqueda semántica y scraping en paralelo,
    normaliza todo a un esquema común.
 4. **Evalúa** — razona sobre elegibilidad real ("pide GPA 3.5+, inglés B2,
-   carrera STEM") y produce `match_score` + `por_que_calza`.
+   carrera STEM") y produce `compatibilidad`, `razones[]` y `brechas[]`.
 5. **Entrega** — dashboard priorizado con next steps y deadline.
 6. **Aprende** — guardar/descartar ajusta futuras recomendaciones *(roadmap)*.
 
@@ -65,7 +65,7 @@ Debe funcionar **en vivo, sin datos hardcodeados**.
 
 | Prioridad | Funcionalidad |
 |-----------|---------------|
-| **Must** | Perfil de 3–4 campos · búsqueda real disparada por el perfil (búsqueda semántica + scraping de 3–5 fuentes bolivianas) · scoring LLM con `por_que_calza` · dashboard ordenado por match · semáforo de confianza · cron real corriendo |
+| **Must** | Perfil de 3–4 campos · búsqueda real disparada por el perfil (búsqueda semántica + scraping de 3–5 fuentes bolivianas) · scoring LLM con `razones[]` · dashboard ordenado por compatibilidad · semáforo de confianza · cron real corriendo |
 | **Should** | Onboarding por voz · resumen en audio de las top del día · filtros por categoría |
 | **Could** | Tarjetas visuales generadas · comparador de oportunidades |
 | **Won't** | Notificaciones WhatsApp reales · feedback loop persistente · >5 fuentes · fine-tuning de modelo propio · postulación asistida |
@@ -82,7 +82,7 @@ vivo (ver fase 5).
 |---|-----------|------------------|
 | H1 | Las fuentes bolivianas son scrapeables de forma estable | Estructura cambia o bloquea; mitigar con fuentes fallback |
 | H2 | El LLM distingue elegibilidad real, no solo keywords | Recomienda becas para las que el perfil no califica |
-| H3 | El `por_que_calza` genera confianza en el usuario | La gente ignora la justificación y solo mira el título |
+| H3 | Las `razones` generan confianza en el usuario | La gente ignora la justificación y solo mira el título |
 | H4 | Hay volumen suficiente de oportunidades bolivianas por semana | Búsquedas devuelven <5 resultados relevantes |
 
 H1 y H4 se prueban **antes del evento** ejecutando las queries a mano. Si

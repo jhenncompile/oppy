@@ -12,7 +12,7 @@ Descomposición del loop del agente en piezas construibles y asignables.
 | M2 | **Orquestador** | Decidir fuentes y generar queries dinámicas según el perfil | M1 | MVP |
 | M3 | **Explorador** | Búsqueda semántica + scraping estructurado + fuentes fijas, en paralelo | M2 | MVP |
 | M4 | **Normalizador** | Mapear resultados crudos al esquema común, deduplicar | M3 | MVP |
-| M5 | **Analista / Scoring** | Razonar elegibilidad, producir `match_score` y `por_que_calza` | M4, M1 | MVP |
+| M5 | **Analista / Scoring** | Razonar elegibilidad, producir `compatibilidad`, `razones[]` y `brechas[]` | M4, M1 | MVP |
 | M6 | **Confianza** | Clasificar fuente (🟢🟡🔴), validar enlace y frescura | M4 | MVP |
 | M7 | **Dashboard** | Listar priorizado, detalle, estado de proceso en vivo | M5, M6 | MVP |
 | M8 | **Scheduler** | Correr el pipeline por cron para usuarios demo | M2–M6 | MVP |
@@ -52,8 +52,9 @@ evento para que frontend y backend avancen en paralelo sin bloquearse.
   "fecha_limite": "ISO date | null",
   "elegibilidad": "string (resumen del LLM)",
   "monto_beneficio": "string | null",
-  "match_score": 0,
-  "por_que_calza": "string (generado por LLM)",
+  "compatibilidad": 0,
+  "razones": ["string (generado por LLM)"],
+  "brechas": ["string (lo que le falta para postular)"],
   "confianza": "verificada | por_validar | desactualizada",
   "link_aplicacion": "url",
   "fecha_extraida": "ISO date"
@@ -92,7 +93,7 @@ red de seguridad para la demo en vivo.
    pantalla. Fin a fin lo antes posible, aunque sea feo.
 2. Ampliar el Explorador a las demás fuentes.
 3. Normalizador + dedupe.
-4. Scoring con `por_que_calza`.
+4. Scoring con `razones[]` y `brechas[]`.
 5. Confianza.
 6. Dashboard real con el diseño de la fase 4.
 7. Cron.
