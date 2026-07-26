@@ -15,7 +15,7 @@
     "test": "npm test --prefix backend",
     "migrate": "npm run migrate --prefix backend",
     "seed": "npm run seed --prefix backend",
-    "cron": "npm run cron --prefix backend",
+    "cron": "node scripts/oppy.mjs agente",
     "build": "npm run build --prefix frontend"
   }
 }

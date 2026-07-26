@@ -286,7 +286,7 @@ export function Onboarding({ onEnviar, enviando }) {
           <span className="text-sm text-ink-secondary">
             Si, avisame cuando encuentres algo para mi.{' '}
             {!puedeAvisar && (
-              <span className="text-ink-muted">Dejanos un correo o telefono primero.</span>
+              <span className="text-ink-secondary">Dejanos un correo o telefono primero.</span>
             )}
           </span>
         </label>

@@ -23,9 +23,11 @@ npm start
 Oppy — entorno local
   entorno sin preparar — empieza por la opcion 1
 
-  1) Preparar el entorno     .env, base de datos, esquema, datos demo
-  2) Levantar el backend     http://localhost:3001
-  3) Levantar el frontend    http://localhost:5173
+  1) Preparar el entorno       .env, base de datos, esquema, datos demo
+  2) Levantar el backend       http://localhost:3001
+  3) Levantar el frontend      http://localhost:5173
+  4) Probar una notificacion   envio real por Zavu
+  5) Correr el agente ahora    la misma corrida que el cron
   0) Salir
 ```
 
@@ -42,12 +44,18 @@ servicios distintos tambien en despliegue (Render y Netlify), y separados se
 reinicia o se leen los logs de uno sin tocar el otro. `Ctrl+C` baja el servicio
 y devuelve al menu.
 
+**Opciones 4 y 5** son las del dia del pitch. La 5 deja el indice poblado por
+adelantado, asi la demo en vivo solo hace matching — rapido y a prueba de la red
+del evento. La 4 confirma que el canal de notificaciones funciona antes de
+demostrarlo, no durante.
+
 Cada opcion tambien es invocable directamente, sin pasar por el menu:
 
 ```bash
 npm run setup     # opcion 1     (node scripts/oppy.mjs preparar)
 npm run dev:api   # opcion 2     (node scripts/oppy.mjs backend)
 npm run dev:web   # opcion 3     (node scripts/oppy.mjs frontend)
+npm run cron      # opcion 5     (node scripts/oppy.mjs agente)
 ```
 
 Sin Ollama la API y el dashboard levantan igual; lo que falla es

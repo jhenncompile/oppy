@@ -61,7 +61,7 @@ export function AgentProcess({ pasos, estado }) {
               key={`${paso.tipo}-${paso.en}-${indice}`}
               className={[
                 'flex items-start gap-3 text-sm',
-                detalle ? 'pl-6 text-ink-muted' : 'text-ink-secondary',
+                detalle ? 'pl-6 text-ink-secondary' : 'text-ink-secondary',
                 esError ? 'text-trust-stale-text' : ''
               ].join(' ')}
             >
@@ -74,7 +74,7 @@ export function AgentProcess({ pasos, estado }) {
         })}
 
         {estado === 'en_curso' && (
-          <li className="flex items-center gap-3 pl-6 text-sm text-ink-muted">
+          <li className="flex items-center gap-3 pl-6 text-sm text-ink-secondary">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-hidden="true" />
             trabajando…
           </li>

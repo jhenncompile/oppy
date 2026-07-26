@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Panel, PanelTitulo } from './components/Panel.jsx';
 import { AgentProcess } from './components/AgentProcess.jsx';
+import { ThemeToggle } from './components/ThemeToggle.jsx';
 import { Onboarding } from './pages/Onboarding.jsx';
 import { Results } from './pages/Results.jsx';
 import { useAgentRun } from './hooks/useAgentRun.js';
@@ -91,6 +92,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-surface-page px-3 py-3 sm:px-6 sm:py-6">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:gap-6">
+        <div className="flex justify-end">
+          <ThemeToggle />
+        </div>
+
         {/* Portada */}
         <Panel centrado>
           <PanelTitulo sobretitulo="Bolivia · becas, pasantias y empleo">
@@ -142,7 +147,7 @@ export default function App() {
           </Panel>
         )}
 
-        <footer className="px-6 py-8 text-center text-xs text-ink-muted">
+        <footer className="px-6 py-8 text-center text-xs text-ink-secondary">
           Oppy no busca oportunidades para llenar vacantes; busca oportunidades
           para que las personas puedan avanzar.
         </footer>

@@ -8,6 +8,20 @@
       name="description"
       content="Oppy busca becas, pasantias y empleos en fuentes bolivianas y te dice cuales calzan con tu perfil, y por que."
     />
+    <script>
+      // El tema se aplica ANTES de pintar. Si esperara a que React monte, quien
+      // usa modo oscuro veria un destello blanco en cada carga.
+      // Lee la misma clave que el boton de la interfaz.
+      try {
+        var guardado = localStorage.getItem('oppy-tema');
+        var oscuro = guardado
+          ? guardado === 'oscuro'
+          : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (oscuro) document.documentElement.classList.add('dark');
+      } catch (e) {
+        // Sin localStorage (modo privado estricto) se queda en claro.
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

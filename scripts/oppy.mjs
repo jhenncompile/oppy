@@ -6,6 +6,8 @@
  *   1) Preparar el entorno — .env, base de datos, esquema, datos demo
  *   2) Levantar el backend
  *   3) Levantar el frontend
+ *   4) Probar una notificacion por Zavu
+ *   5) Correr el agente ahora (la misma corrida que el cron)
  *
  * Backend y frontend son opciones separadas a proposito: son dos servicios
  * distintos tambien en despliegue (Render y Netlify), y separados se reinicia
@@ -17,6 +19,7 @@
  *   node scripts/oppy.mjs preparar
  *   node scripts/oppy.mjs backend
  *   node scripts/oppy.mjs frontend
+ *   node scripts/oppy.mjs agente
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -53,14 +56,16 @@ const error = (t) => console.log(`  ${c.rojo('✖')} ${t}`);
 /** npm en Windows es un .cmd: Node exige shell para ejecutarlo. */
 const conShell = process.platform === 'win32';
 
-/** Ejecuta npm y devuelve el codigo de salida, sin lanzar. */
-function npmCodigo(args, cwd, stdio = 'inherit') {
+/** Ejecuta un comando y devuelve el codigo de salida, sin lanzar. */
+function ejecutar(comando, args, cwd, stdio = 'inherit') {
   return new Promise((resolve, reject) => {
-    const hijo = spawn('npm', args, { cwd, stdio, shell: conShell });
+    const hijo = spawn(comando, args, { cwd, stdio, shell: conShell });
     hijo.on('error', reject);
     hijo.on('close', (codigo) => resolve(codigo ?? 1));
   });
 }
+
+const npmCodigo = (args, cwd, stdio) => ejecutar('npm', args, cwd, stdio);
 
 /** Igual, pero un codigo distinto de cero es un fallo del paso. */
 async function npm(args, cwd) {
@@ -132,7 +137,7 @@ const preparado = () =>
  */
 async function preparar() {
   let paso = 0;
-  const titulo = (t) => console.log(`\n${c.fuerte(`[${++paso}/6] ${t}`)}`);
+  const titulo = (t) => console.log(`\n${c.fuerte(`[${++paso}/7] ${t}`)}`);
 
   console.log(c.fuerte('\nPreparando el entorno local'));
 
@@ -187,6 +192,10 @@ async function preparar() {
   // 6. Modelo ---------------------------------------------------------------
   titulo('Revisando el modelo local');
   await revisarOllama(leerEnv(envBackend));
+
+  // 7. Notificaciones -------------------------------------------------------
+  titulo('Revisando las notificaciones');
+  revisarZavu(leerEnv(envBackend));
 
   console.log(`\n${c.verde('Entorno listo.')} Ahora las opciones 2 y 3, cada una en su terminal.`);
 }
@@ -306,6 +315,85 @@ async function revisarOllama({ OLLAMA_URL = 'http://localhost:11434', OLLAMA_MOD
   }
 }
 
+/**
+ * Zavu no bloquea nada: sin clave, el modulo de notificaciones se degrada solo
+ * y registra el intento como fallido, igual que Exa y Firecrawl. Pero conviene
+ * decirlo fuerte, porque es un entregable del track y es facil olvidarlo.
+ */
+function revisarZavu({ ZAVUDEV_API_KEY = '', NOTIF_MATCH_THRESHOLD = '80' }) {
+  if (ZAVUDEV_API_KEY.length > 0) {
+    ok(`Zavu configurado, umbral de aviso en ${NOTIF_MATCH_THRESHOLD}%`);
+    nota('para probar un envio real: opcion 4 del menu');
+    return;
+  }
+
+  aviso('ZAVUDEV_API_KEY vacia: no se envian notificaciones.');
+  nota('El resto de Oppy funciona igual; los intentos quedan como fallidos');
+  nota('en la tabla `notificaciones`.');
+  nota('Conseguila en https://zavu.dev y ponela en backend/.env');
+}
+
+// =========================================================================
+// Opcion 4 — Probar una notificacion
+// =========================================================================
+
+/**
+ * Envio real contra un destinatario de verdad. Es el paso que hay que haber
+ * hecho antes del pitch: si el canal falla, es mucho mejor enterarse aca que
+ * frente al jurado.
+ */
+async function probarNotificacion() {
+  const envBackend = join(SERVICIOS.backend.dir, '.env');
+
+  if (!existsSync(envBackend)) {
+    error('Falta backend/.env. Corre primero la opcion 1.');
+    return;
+  }
+
+  const { ZAVUDEV_API_KEY = '' } = leerEnv(envBackend);
+  if (!ZAVUDEV_API_KEY) {
+    error('ZAVUDEV_API_KEY esta vacia en backend/.env.');
+    nota('Conseguila en https://zavu.dev');
+    return;
+  }
+
+  console.log(`\n${c.fuerte('Probar una notificacion')}`);
+  nota('Zavu detecta el canal por el formato: un correo sale por email,');
+  nota('un telefono en formato internacional por SMS o Telegram.');
+
+  const destinatario = await preguntar('A donde la mando');
+  if (!destinatario) {
+    error('Sin destinatario no hay nada que enviar.');
+    return;
+  }
+
+  await ejecutar('node', ['scripts/test-zavu.js', destinatario], SERVICIOS.backend.dir);
+}
+
+// =========================================================================
+// Opcion 5 — Corrida del agente
+// =========================================================================
+
+/**
+ * La misma corrida que dispara el cron, en un proceso aparte. Sirve para dejar
+ * el indice poblado ANTES del pitch: asi la demo en vivo solo hace matching —
+ * rapido y a prueba de la red del evento.
+ */
+async function correrAgente() {
+  if (!existsSync(join(SERVICIOS.backend.dir, '.env'))) {
+    error('Falta backend/.env. Corre primero la opcion 1.');
+    return;
+  }
+
+  console.log(`\n${c.fuerte('Corrida del agente')}`);
+  nota('Descubre, normaliza, puntua y notifica. Es lo mismo que hace el cron.');
+  nota('npm run cron --prefix backend\n');
+
+  const codigo = await npmCodigo(['run', 'cron'], SERVICIOS.backend.dir);
+  if (codigo === 0) ok('Corrida terminada');
+  else error(`La corrida termino con codigo ${codigo}`);
+}
+
 // =========================================================================
 // Opciones 2 y 3 — Levantar cada servicio
 // =========================================================================
@@ -352,7 +440,9 @@ async function levantar(clave) {
 const OPCIONES = {
   1: { alias: 'preparar', texto: 'Preparar el entorno', detalle: '.env, base de datos, esquema, datos demo', accion: preparar },
   2: { alias: 'backend', texto: 'Levantar el backend', detalle: 'http://localhost:3001', accion: () => levantar('backend') },
-  3: { alias: 'frontend', texto: 'Levantar el frontend', detalle: 'http://localhost:5173', accion: () => levantar('frontend') }
+  3: { alias: 'frontend', texto: 'Levantar el frontend', detalle: 'http://localhost:5173', accion: () => levantar('frontend') },
+  4: { alias: 'notificacion', texto: 'Probar una notificacion', detalle: 'envio real por Zavu', accion: probarNotificacion },
+  5: { alias: 'agente', texto: 'Correr el agente ahora', detalle: 'la misma corrida que el cron', accion: correrAgente }
 };
 
 function encabezado() {
@@ -369,6 +459,8 @@ function encabezado() {
   console.log(`  ${c.fuerte('0')}) Salir\n`);
   console.log(c.gris('  El backend y el frontend van en terminales separadas:'));
   console.log(c.gris('  abre esta herramienta en cada una y elige 2 en una, 3 en la otra.\n'));
+  console.log(c.gris('  Antes del pitch: 5 para dejar el indice poblado, 4 para confirmar'));
+  console.log(c.gris('  que el canal de notificaciones funciona.\n'));
 }
 
 async function menu() {

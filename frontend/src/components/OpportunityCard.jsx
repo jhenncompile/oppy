@@ -16,8 +16,8 @@ function diasRestantes(fechaLimite) {
 
 function Deadline({ fechaLimite }) {
   const dias = diasRestantes(fechaLimite);
-  if (dias === null) return <span className="text-xs text-ink-muted">Sin fecha limite</span>;
-  if (dias < 0) return <span className="text-xs text-ink-muted">Cerrada</span>;
+  if (dias === null) return <span className="text-xs text-ink-secondary">Sin fecha limite</span>;
+  if (dias < 0) return <span className="text-xs text-ink-secondary">Cerrada</span>;
 
   // Solo se pone urgente cuando de verdad lo es. Si todo grita, nada grita.
   const urgente = dias <= 3;
@@ -42,7 +42,7 @@ export function OpportunityCard({ match, onGuardar, onAbrir, onSeguimiento }) {
         <TrustBadge confianza={oportunidad.confianza} />
         <div className="flex items-center gap-3">
           {oportunidad.sponsored && (
-            <span className="pill bg-surface-subtle text-ink-muted">Patrocinada</span>
+            <span className="pill bg-surface-subtle text-ink-secondary">Patrocinada</span>
           )}
           <span className="pill bg-surface-subtle text-ink-secondary capitalize">
             {oportunidad.categoria}
@@ -53,7 +53,7 @@ export function OpportunityCard({ match, onGuardar, onAbrir, onSeguimiento }) {
 
       <div className="flex flex-col gap-1">
         <h3 className="text-lg font-semibold leading-snug text-ink">{oportunidad.titulo}</h3>
-        <p className="text-xs text-ink-muted">
+        <p className="text-xs text-ink-secondary">
           {oportunidad.fuente.nombre} · actualizado{' '}
           {new Date(oportunidad.fechaExtraida).toLocaleDateString('es-BO')}
         </p>
@@ -80,7 +80,7 @@ export function OpportunityCard({ match, onGuardar, onAbrir, onSeguimiento }) {
 
         {match.brechas?.length > 0 && (
           <div className="mt-4 border-t border-line-subtle pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-secondary">
               Para postular te falta
             </p>
             <ul className="mt-2 flex flex-col gap-1.5">

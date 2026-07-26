@@ -23,7 +23,7 @@ export function ScoreBar({ score }) {
         />
       </div>
       <span className="text-sm font-semibold text-score-text">{valor}%</span>
-      <span className="text-sm text-ink-muted">compatible</span>
+      <span className="text-sm text-ink-secondary">compatible</span>
     </div>
   );
 }

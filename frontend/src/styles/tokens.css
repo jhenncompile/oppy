@@ -104,26 +104,36 @@
 
 /* == 1b. Primitivos — oscuro ===============================================
  *
- * PENDIENTE: la exportacion de Figma solo trajo el modo claro. Estas escalas
- * siguen siendo las de arranque y no son la contraparte oscura de las de
- * arriba — el acento oscuro es otro azul. Reemplazar cuando el archivo de
- * Figma tenga la coleccion Dark.
+ * La exportacion de Figma solo trajo el modo claro. El acento oscuro de aca
+ * esta DERIVADO del claro: mismo tono cian (~197º) que #49a0c5, con los pasos
+ * reacomodados para fondo oscuro. No sale de Figma.
+ *
+ * Se mantiene la convencion de las escalas: el paso 9 es el mismo color en
+ * ambos temas — es el color de marca y no deberia cambiar al alternar.
+ *
+ * Los grises oscuros son neutros y sirven con cualquier acento, asi que se
+ * conservan tal cual.
+ *
+ * Cuando el archivo de Figma tenga la coleccion Dark, se reemplaza este bloque
+ * y nada mas.
  * ------------------------------------------------------------------------- */
 .dark,
 .dark-theme {
-  --blue-1: #0c111c;
-  --blue-2: #111725;
-  --blue-3: #172448;
-  --blue-4: #1d2e61;
-  --blue-5: #243974;
-  --blue-6: #2d4484;
-  --blue-7: #375098;
-  --blue-8: #405eb2;
-  --blue-9: #3d63dd;
-  --blue-10: #3f5cb0;
-  --blue-11: #93b4ff;
-  --blue-12: #d5e2ff;
-  --blue-contrast: #fff;
+  --blue-1: #0b1417;
+  --blue-2: #101c21;
+  --blue-3: #12303c;
+  --blue-4: #103e4f;
+  --blue-5: #164a5d;
+  --blue-6: #1e576c;
+  --blue-7: #26677e;
+  --blue-8: #2d7d99;
+  --blue-9: #49a0c5;
+  --blue-10: #5aaed1;
+  --blue-11: #7ecbe8;
+  --blue-12: #d3f0fb;
+  /* En oscuro el solido es claro, asi que lo que va encima tiene que ser
+   * oscuro — al reves que en el tema claro. */
+  --blue-contrast: #08191f;
 
   --gray-1: #111113;
   --gray-2: #19191b;
@@ -160,9 +170,16 @@
 /* Se resuelven solos al cambiar de tema porque apuntan al mismo paso de la
  * escala: asi estan disenadas las escalas de Radix. */
 :root {
-  --surface-page: var(--color-background);
-  --surface-card: var(--gray-1);
-  --surface-subtle: var(--gray-2);
+  /* El panel apilado es el gesto visual de la pagina: bloques muy redondeados
+   * que FLOTAN sobre el fondo. Para que floten tienen que ser mas claros y mas
+   * calidos que el lienzo, no al reves — de lo contrario se leen como cajas
+   * grises apagadas y el efecto desaparece.
+   *
+   * Por eso el blanco calido de la paleta es la superficie del panel, y el
+   * lienzo va un paso de gris por debajo. */
+  --surface-page: var(--gray-2);
+  --surface-card: var(--color-background);
+  --surface-subtle: var(--gray-1);
   --surface-hover: var(--gray-3);
   --surface-accent-subtle: var(--blue-3);
 
@@ -172,12 +189,18 @@
 
   --text-primary: var(--gray-12);
   --text-secondary: var(--gray-11);
+  /* Ojo: el paso 10 da 3.9:1 y solo pasa AA en texto grande. Para texto chico
+   * — que es casi todo lo que hay — se usa `--text-secondary`. */
   --text-muted: var(--gray-10);
   --text-accent: var(--blue-11);
   --text-on-accent: var(--blue-contrast);
 
-  --accent-solid: var(--blue-9);
-  --accent-hover: var(--blue-10);
+  /* El paso 9 de una escala esta pensado para rellenos, no para llevar texto
+   * encima: blanco sobre el 9 da 2.9:1 y no pasa AA. Los solidos que llevan
+   * texto usan el 11, que da 5.4:1. El 9 se conserva donde no hay texto —
+   * la barra de compatibilidad, mas abajo. */
+  --accent-solid: var(--blue-11);
+  --accent-hover: var(--blue-12);
 
   /* Semaforo de confianza. Nunca se comunica solo con color: cada estado
    * lleva ademas punto e etiqueta de texto. */
@@ -199,6 +222,28 @@
   --score-track: var(--gray-4);
   --score-fill: var(--blue-9);
   --score-text: var(--blue-11);
+}
+
+/* == 2b. Semanticos — ajustes del tema oscuro ==============================
+ *
+ * La elevacion se invierte al cambiar de tema. En claro, un panel flota siendo
+ * MAS claro que el lienzo; en oscuro, flota siendo mas claro tambien — pero el
+ * lienzo pasa a ser el extremo oscuro de la escala, no el claro.
+ *
+ * Sin esto, la asignacion del bloque de arriba dejaria los paneles mas oscuros
+ * que la pagina y el gesto visual se perderia igual que antes, al reves.
+ *
+ * Va DESPUES del bloque de arriba a proposito: misma especificidad, gana el
+ * ultimo.
+ * ------------------------------------------------------------------------- */
+.dark,
+.dark-theme {
+  --surface-page: var(--gray-1);
+  --surface-card: var(--gray-2);
+  --surface-subtle: var(--gray-3);
+  --surface-hover: var(--gray-4);
+
+  --score-track: var(--gray-5);
 }
 
 /* == 3. Escala ============================================================= */
