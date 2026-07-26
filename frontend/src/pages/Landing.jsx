@@ -1,82 +1,93 @@
 import { Link, Navigate } from 'react-router-dom';
-import { Panel, PanelTitulo } from '../components/Panel.jsx';
 import { Button } from '../components/Button.jsx';
-import { usePerfil } from '../hooks/usePerfil.jsx';
-import { useAcceso } from '../hooks/useAcceso.jsx';
+import { Logo } from '../components/Logo.jsx';
 import { Icono } from '../components/Icono.jsx';
+import { usePerfil } from '../hooks/usePerfil.jsx';
 
 /**
- * Los canales que todavia no existen se muestran igual, deshabilitados.
+ * Portada.
  *
- * No es decoracion: son la promesa de accesibilidad del producto, y esconderla
- * hasta que este lista es decirle a quien la necesita que no fue pensada.
+ * Una sola pantalla, dos caminos y nada mas. Quien llega no sabe todavia que es
+ * Oppy, y una portada larga le pide leer antes de dejarlo probar — que es lo
+ * contrario de lo que necesita alguien que entra a buscar trabajo.
  */
-const CANALES = [
-  { icono: 'mensaje', texto: 'WhatsApp' },
-  { icono: 'enviar', texto: 'Telegram' },
-  { icono: 'microfono', texto: 'Contame hablando' }
+
+const PUNTOS = [
+  {
+    icono: 'lupa',
+    titulo: 'Busca por su cuenta',
+    texto: 'Revisa fuentes bolivianas todos los dias, sin que tengas que entrar.'
+  },
+  {
+    icono: 'chispas',
+    titulo: 'Explica cada resultado',
+    texto: 'Te dice por que una convocatoria calza con tu perfil, y que te falta.'
+  },
+  {
+    icono: 'escudo',
+    titulo: 'Marca de donde salio',
+    texto: 'Cada oportunidad muestra su fuente y si el plazo sigue vigente.'
+  }
 ];
 
 export function Landing() {
   const { perfil, cargando } = usePerfil();
-  const { disponible } = useAcceso();
 
   // Quien ya tiene perfil no vuelve a ver la portada: va directo a lo suyo.
   if (perfil) return <Navigate to="/oportunidades" replace />;
 
   return (
-    <Panel centrado>
-      <PanelTitulo sobretitulo="Bolivia · becas, pasantias y empleo">
-        Hola, soy Oppy.
-      </PanelTitulo>
+    <div className="flex flex-col gap-3 sm:gap-6">
+      <section className="panel px-5 py-12 text-center sm:px-12 sm:py-16">
+        <div className="mx-auto flex w-full max-w-2xl flex-col items-center">
+          <Logo tamanio="lg" animado />
 
-      <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-ink-secondary">
-        Te ayudo a encontrar oportunidades que se adapten a vos: empleo, cursos,
-        becas o programas de crecimiento. Busco por mi cuenta y te aviso cuando
-        encuentro algo — no hace falta que estes revisando.
-      </p>
+          <h1 className="mt-8 text-balance font-display text-3xl font-bold leading-tight text-ink sm:text-4xl md:text-5xl">
+            Las oportunidades existen. Encontrarlas es el problema.
+          </h1>
 
-      <div className="mt-10 flex flex-col items-center gap-3">
-        <Link to="/onboarding">
-          <Button variante="primario" tamano="lg" disabled={cargando}>
-            Empezar
-            <Icono nombre="flecha-derecha" tamanio={18} />
-          </Button>
-        </Link>
-        <p className="text-xs text-ink-secondary">Toma menos de un minuto. No pedimos CV ni documentos.</p>
+          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-ink-secondary sm:text-lg">
+            Soy Oppy. Busco becas, empleos, cursos y convocatorias en Bolivia, y
+            te explico por que cada una tiene sentido para tu perfil.
+          </p>
 
-        {/* Nunca compite con "Empezar": recuperar el acceso es el camino de
-            quien ya paso por aca, no una alternativa para empezar. Solo aparece
-            si el backend de acceso existe. */}
-        {disponible && (
-          <Link
-            to="/acceso"
-            className="min-h-[44px] text-sm text-ink-secondary underline underline-offset-2 hover:text-ink"
-          >
-            Ya usaste Oppy antes? Recupera tu perfil
-          </Link>
-        )}
-      </div>
+          {/* Los dos caminos, uno al lado del otro. En movil se apilan y el de
+              probar queda arriba: es el que sirve a quien llega por primera vez. */}
+          <div className="mt-10 flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-center">
+            <Link to="/onboarding" className="w-full sm:w-auto">
+              <Button variante="primario" tamano="lg" disabled={cargando} className="w-full sm:w-auto">
+                Probar la demo
+                <Icono nombre="flecha-derecha" tamanio={18} />
+              </Button>
+            </Link>
 
-      <div className="mx-auto mt-12 max-w-lg border-t border-line-subtle pt-8">
-        <p className="text-xs text-ink-secondary">Muy pronto vas a poder usarme desde:</p>
-        <ul className="mt-4 flex flex-wrap justify-center gap-2">
-          {CANALES.map((canal) => (
-            <li key={canal.texto}>
-              <button
-                type="button"
-                disabled
-                title="Muy pronto"
-                className="inline-flex min-h-[44px] cursor-not-allowed items-center gap-2 rounded-full border border-line-subtle px-4 text-sm text-ink-secondary opacity-60"
-              >
-                <Icono nombre={canal.icono} tamanio={16} />
-                {canal.texto}
-                <span className="sr-only">— muy pronto</span>
-              </button>
+            <Link to="/acceso" className="w-full sm:w-auto">
+              <Button variante="secundario" tamano="lg" className="w-full sm:w-auto">
+                <Icono nombre="escudo" tamanio={18} />
+                Iniciar sesion
+              </Button>
+            </Link>
+          </div>
+
+          <p className="mt-4 text-sm text-ink-secondary">
+            La demo toma menos de un minuto. No pedimos CV ni documentos.
+          </p>
+        </div>
+      </section>
+
+      <section className="panel px-5 py-10 sm:px-12 sm:py-12">
+        <ul className="mx-auto grid w-full max-w-4xl gap-8 sm:grid-cols-3 sm:gap-6">
+          {PUNTOS.map((punto) => (
+            <li key={punto.titulo} className="flex flex-col items-center gap-3 text-center">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-accent text-ink-accent">
+                <Icono nombre={punto.icono} tamanio={20} />
+              </span>
+              <h2 className="text-base font-semibold text-ink">{punto.titulo}</h2>
+              <p className="text-sm leading-relaxed text-ink-secondary">{punto.texto}</p>
             </li>
           ))}
         </ul>
-      </div>
-    </Panel>
+      </section>
+    </div>
   );
 }

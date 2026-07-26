@@ -279,6 +279,62 @@ CREATE INDEX IF NOT EXISTS idx_matches_ranking
   ON matches (user_id, compatibilidad DESC);
 
 -- ---------------------------------------------------------------------------
+-- La libreta de cada persona: oportunidades que encontro por su cuenta.
+--
+-- Un aviso que llego por WhatsApp, un cartel en una puerta, un dato de una
+-- conocida. En Bolivia esa es la mayor parte del mercado y no hay forma de
+-- descubrirla scrapeando — pero la persona igual necesita seguirle el rastro.
+--
+-- Tabla APARTE del indice compartido, y la separacion es la feature:
+--
+--   1. Es privada. Nadie mas la ve. Si esto viviera dentro de `opportunities`
+--      con un flag, cada consulta existente — findCandidatas, el listado
+--      publico, los insights — tendria que acordarse de filtrar, y una sola
+--      que se olvide expone lo que alguien anoto en privado.
+--   2. No tiene `confianza`. El semaforo es una afirmacion de Oppy sobre una
+--      fuente; sobre algo que la persona anoto, Oppy no afirma nada. Ponerle
+--      color seria mentir en las dos direcciones.
+--   3. No tiene compatibilidad ni razones. La persona ya decidio que le
+--      interesa: no necesita que un modelo le diga cuanto calza.
+--
+-- `enlace` es nullable a proposito: el trabajo informal no tiene URL. Para eso
+-- esta `donde`, que guarda en palabras de donde salio.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS oportunidades_propias (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  titulo        TEXT NOT NULL,
+  organizacion  TEXT,
+  enlace        TEXT,
+  donde         TEXT,
+  notas         TEXT,
+  fecha_limite  DATE,
+
+  -- El mismo enum que `matches` menos 'nuevo' y 'visto': una oportunidad que
+  -- la persona se tomo el trabajo de anotar ya nace en seguimiento.
+  estado        TEXT NOT NULL DEFAULT 'guardado'
+                  CHECK (estado IN (
+                    'guardado', 'preparando', 'aplicada',
+                    'entrevista', 'finalizada', 'descartado'
+                  )),
+
+  -- Idempotencia del recordatorio, en la fila y no en una tabla aparte: se
+  -- avisa una sola vez por oportunidad, y avisar dos veces de lo mismo es
+  -- exactamente como Oppy dejaria de ser un acompaniante.
+  recordatorio_enviado_en TIMESTAMPTZ,
+
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_propias_persona
+  ON oportunidades_propias (user_id, estado);
+-- Parcial: el job de recordatorios solo mira las que todavia no avisaron.
+CREATE INDEX IF NOT EXISTS idx_propias_pendientes
+  ON oportunidades_propias (fecha_limite)
+  WHERE recordatorio_enviado_en IS NULL;
+
+-- ---------------------------------------------------------------------------
 -- Telemetria de producto. Sin esto, los reportes de marca empleadora y de
 -- impacto (RSE) no tienen que reportar.
 -- ---------------------------------------------------------------------------
@@ -353,6 +409,66 @@ CREATE TABLE IF NOT EXISTS notificaciones (
 CREATE INDEX IF NOT EXISTS idx_notificaciones_recientes
   ON notificaciones (user_id, enviado_en DESC);
 
+-- --- Migracion de `notificaciones` -----------------------------------------
+--
+-- Hay dos avisos distintos sobre la misma oportunidad y no son el mismo hecho:
+-- "encontre esto para vos" pasa una vez, cuando aparece; "esto cierra en tres
+-- dias" pasa despues, cuando el plazo se acerca.
+--
+-- Con el UNIQUE original sobre (user_id, opportunity_id) el segundo aviso no
+-- podia existir: a quien ya se le habia avisado del match nunca se le
+-- recordaba el cierre. El tipo entra en la clave para que cada aviso tenga su
+-- propia idempotencia.
+ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'match_alto';
+
+ALTER TABLE notificaciones DROP CONSTRAINT IF EXISTS notificaciones_tipo_check;
+ALTER TABLE notificaciones ADD CONSTRAINT notificaciones_tipo_check
+  CHECK (tipo IN ('match_alto', 'cierre_proximo'));
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'notificaciones_user_id_opportunity_id_key'
+      AND conrelid = 'notificaciones'::regclass
+  ) THEN
+    ALTER TABLE notificaciones DROP CONSTRAINT notificaciones_user_id_opportunity_id_key;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'notificaciones_aviso_unico'
+      AND conrelid = 'notificaciones'::regclass
+  ) THEN
+    ALTER TABLE notificaciones
+      ADD CONSTRAINT notificaciones_aviso_unico UNIQUE (user_id, opportunity_id, tipo);
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- Codigos de acceso. Contrato en docs/12-auth.md.
+--
+-- Oppy no pide contrasenia: para volver a entrar desde otro dispositivo se
+-- manda un codigo de 6 digitos al contacto que la persona ya dejo. Por eso no
+-- hay tabla de sesiones ni de credenciales — esto es todo lo que hace falta.
+--
+-- Se guarda el HASH y nunca el codigo en claro: quien lea la base no debe poder
+-- entrar a la cuenta de nadie. Seis digitos son 10^6 combinaciones, asi que el
+-- limite de intentos es lo que sostiene la seguridad, no la longitud.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS codigos_acceso (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  codigo_hash TEXT NOT NULL,
+  intentos    INTEGER NOT NULL DEFAULT 0,
+  expira_en   TIMESTAMPTZ NOT NULL,
+  usado_en    TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_codigos_vigentes
+  ON codigos_acceso (user_id, expira_en DESC);
+
 -- ---------------------------------------------------------------------------
 -- Row Level Security.
 --
@@ -378,8 +494,8 @@ DECLARE
   tabla TEXT;
 BEGIN
   FOREACH tabla IN ARRAY ARRAY[
-    'orgs', 'users', 'opportunities', 'matches',
-    'events', 'consents', 'agent_runs', 'notificaciones'
+    'orgs', 'users', 'opportunities', 'matches', 'oportunidades_propias',
+    'events', 'consents', 'agent_runs', 'notificaciones', 'codigos_acceso'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tabla);

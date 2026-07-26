@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Panel, PanelTitulo } from '../components/Panel.jsx';
 import { Button } from '../components/Button.jsx';
+import { Campo } from '../components/Campos.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
+import { useAcceso } from '../hooks/useAcceso.jsx';
 import { api } from '../api/client.js';
 import { Icono } from '../components/Icono.jsx';
 
@@ -25,7 +27,7 @@ function Dato({ etiqueta, icono, children }) {
         <Icono nombre={icono} tamanio={15} />
         {etiqueta}
       </dt>
-      <dd className="text-sm text-ink">{children}</dd>
+      <dd className="break-words text-sm text-ink">{children}</dd>
     </div>
   );
 }
@@ -41,6 +43,166 @@ function Etiquetas({ valores, vacio }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Portabilidad del perfil. Contrato en docs/12-auth.md.
+ *
+ * Aparece recien aca y nunca antes: la persona usa Oppy primero y despues
+ * decide si quiere poder volver. Bloquear el onboarding con esto seria
+ * exactamente el error que el producto evita.
+ *
+ * No hay un boton "activar": el codigo se manda al contacto que ya esta en el
+ * perfil, asi que el acceso existe desde que ese contacto existe. Lo que se
+ * ofrece es dejar el contacto, que es el paso que de verdad falta.
+ *
+ * Solo se muestra cuando el backend de acceso responde — mientras `disponible`
+ * sea false, este bloque no existe para nadie.
+ */
+function Acceso({ perfil, onGuardado }) {
+  const { disponible } = useAcceso();
+
+  const [editando, setEditando] = useState(false);
+  const [email, setEmail] = useState(perfil.email ?? '');
+  const [telefono, setTelefono] = useState(perfil.telefono ?? '');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
+
+  if (!disponible) return null;
+
+  // Sin consentimiento el canal no esta habilitado ni para avisos ni para
+  // acceso: es la misma regla, no dos permisos distintos.
+  const contacto = perfil.aceptaNotificaciones ? perfil.email || perfil.telefono : null;
+  const hayAlgo = Boolean(email.trim() || telefono.trim());
+
+  const guardarContacto = async () => {
+    setGuardando(true);
+    setError(null);
+    try {
+      const { perfil: actualizado } = await api.actualizarContacto(perfil.id, {
+        email: email.trim() || null,
+        telefono: telefono.trim() || null,
+        aceptaNotificaciones: true
+      });
+      onGuardado(actualizado);
+      setEditando(false);
+    } catch (fallo) {
+      setError(fallo.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto mt-10 max-w-2xl rounded-lg border border-line-subtle p-4">
+      <p className="flex items-center gap-2 text-sm font-medium text-ink">
+        <Icono nombre="escudo" tamanio={16} className="text-ink-accent" />
+        Volver a entrar
+      </p>
+
+      {!editando && contacto && (
+        <>
+          <p className="mt-2 text-sm text-ink-secondary">
+            Si limpias el navegador, cambias de telefono o entras desde otra
+            computadora, puedes recuperar tu perfil con un codigo que te mando a{' '}
+            <strong className="break-all font-medium text-ink">{contacto}</strong>. No hace
+            falta clave.
+          </p>
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="mt-3 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-ink-secondary underline underline-offset-2 hover:text-ink"
+          >
+            <Icono nombre="correo" tamanio={15} />
+            Cambiar mi contacto
+          </button>
+        </>
+      )}
+
+      {!editando && !contacto && (
+        <>
+          <p className="mt-2 flex items-start gap-2 text-sm text-ink-secondary">
+            <Icono nombre="alerta" tamanio={16} className="mt-0.5 text-trust-pending-text" />
+            <span>
+              Tu perfil vive solo en este navegador. Si lo limpias o cambias de
+              dispositivo, se pierde.
+            </span>
+          </p>
+          <div className="mt-3">
+            <Button variante="secundario" onClick={() => setEditando(true)}>
+              <Icono nombre="escudo" tamanio={15} />
+              Guardar mi acceso
+            </Button>
+          </div>
+        </>
+      )}
+
+      {editando && (
+        <div className="mt-4 flex flex-col gap-4">
+          <p className="text-sm text-ink-secondary">
+            Dejame un correo o un telefono. Te mando ahi un codigo cuando quieras
+            volver a entrar — y nada mas que eso, salvo que encuentre algo que
+            te sirva.
+          </p>
+
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="flex-1">
+              <Campo
+                nombre="acceso-email"
+                etiqueta="Correo"
+                type="email"
+                opcional
+                placeholder="tucorreo@ejemplo.com"
+                valor={email}
+                onCambiar={(evento) => setEmail(evento.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <Campo
+                nombre="acceso-telefono"
+                etiqueta="Telefono"
+                type="tel"
+                opcional
+                placeholder="+591 71234567"
+                valor={telefono}
+                onCambiar={(evento) => setTelefono(evento.target.value)}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p className="flex items-start gap-2 text-sm text-trust-stale-text" role="alert">
+              <Icono nombre="alerta" tamanio={16} className="mt-0.5" />
+              <span>{error}</span>
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variante="primario"
+              onClick={guardarContacto}
+              disabled={!hayAlgo || guardando}
+            >
+              <Icono nombre="check" tamanio={15} />
+              {guardando ? 'Guardando…' : 'Guardar'}
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditando(false);
+                setEmail(perfil.email ?? '');
+                setTelefono(perfil.telefono ?? '');
+                setError(null);
+              }}
+              className="min-h-[44px] text-sm text-ink-secondary underline underline-offset-2 hover:text-ink"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -67,7 +229,7 @@ export function Perfil() {
     <Panel>
       <div className="mb-8">
         <PanelTitulo sobretitulo="Tu perfil">
-          {perfil.nombre ? `Hola, ${perfil.nombre}` : 'Esto es lo que se de vos'}
+          {perfil.nombre ? `Hola, ${perfil.nombre}` : 'Esto es lo que se de ti'}
         </PanelTitulo>
       </div>
 
@@ -80,7 +242,7 @@ export function Perfil() {
         </Dato>
         <Dato etiqueta="Te dedicas a" icono="maletin">{perfil.carrera}</Dato>
         <Dato etiqueta="Estudios" icono="birrete">{perfil.nivelEstudios}</Dato>
-        <Dato etiqueta="Donde vivis" icono="ubicacion">{perfil.ubicacion}</Dato>
+        <Dato etiqueta="Donde vives" icono="ubicacion">{perfil.ubicacion}</Dato>
         <Dato etiqueta="Experiencia" icono="libro">
           <Etiquetas valores={perfil.experiencia} vacio="No cargaste ninguna" />
         </Dato>
@@ -96,6 +258,8 @@ export function Perfil() {
             : 'No pediste que te avise'}
         </Dato>
       </dl>
+
+      <Acceso perfil={perfil} onGuardado={guardar} />
 
       {/* Opt-in del matching inverso. Apagado por defecto y revocable: el
           consentimiento queda registrado con su fecha del lado del servidor.
@@ -120,7 +284,7 @@ export function Perfil() {
             <br />
             Todavia ninguna organizacion publica en Oppy. Si lo activas ahora,
             vas a aparecer para las que empiecen a hacerlo y podran proponerte
-            oportunidades. Podes apagarlo cuando quieras.
+            oportunidades. Puedes apagarlo cuando quieras.
           </span>
         </label>
       </div>

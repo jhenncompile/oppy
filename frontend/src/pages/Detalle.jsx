@@ -88,7 +88,7 @@ function Cuenta({ fechaLimite }) {
   }
 
   const texto =
-    dias === 0 ? 'Cierra hoy' : dias === 1 ? 'Cierra maniana' : `Faltan ${dias} dias`;
+    dias === 0 ? 'Cierra hoy' : dias === 1 ? 'Cierra en 1 dia' : `Faltan ${dias} dias`;
 
   return (
     <span
@@ -109,7 +109,7 @@ function Bloque({ titulo, icono, children }) {
         {icono && <Icono nombre={icono} tamanio={13} />}
         {titulo}
       </h3>
-      <div className="mt-2 text-sm leading-relaxed text-ink">{children}</div>
+      <div className="mt-2 break-words text-sm leading-relaxed text-ink">{children}</div>
     </section>
   );
 }
@@ -200,7 +200,7 @@ export function Detalle() {
             )}
           </div>
 
-          <h2 className="font-display text-2xl font-bold leading-snug text-ink sm:text-3xl">
+          <h2 className="break-words font-display text-2xl font-bold leading-snug text-ink sm:text-3xl">
             {oportunidad.titulo}
           </h2>
 
@@ -212,7 +212,7 @@ export function Detalle() {
             <p className="flex items-start gap-2 rounded-md border border-trust-stale-border bg-trust-stale-bg p-3 text-sm text-trust-stale-text">
               <Icono nombre="alerta" tamanio={16} className="mt-0.5" />
               <span>
-                Hay un requisito que hoy no cumplis. Podes postular igual, pero
+                Hay un requisito que hoy no cumples. Puedes postular igual, pero
                 conviene que mires primero lo que falta.
               </span>
             </p>
@@ -222,7 +222,7 @@ export function Detalle() {
         {/* Las razones son la salida del razonamiento del agente: van primero y
             con peso propio, nunca como letra chica. */}
         <div className="rounded-lg bg-surface-accent p-5">
-          <Bloque titulo="Por que calza con vos" icono="chispas">
+          <Bloque titulo="Por que calza con tu perfil" icono="chispas">
             <ul className="flex flex-col gap-2">
               {match.razones?.map((razon) => (
                 <li key={razon} className="flex gap-2">
@@ -310,7 +310,7 @@ export function Detalle() {
                   >
                     {laTengo && <Icono nombre="check" tamanio={13} />}
                     {legible(skill)}
-                    {laTengo && <span className="sr-only"> — ya lo tenes</span>}
+                    {laTengo && <span className="sr-only"> — ya lo tienes</span>}
                   </li>
                 );
               })}

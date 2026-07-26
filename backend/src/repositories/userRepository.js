@@ -108,6 +108,36 @@ export async function registrarConsentimiento(userId, tipo, otorgado) {
   );
 }
 
+/**
+ * Cambia el contacto de un perfil que ya existe.
+ *
+ * Hace falta para el acceso (docs/12-auth.md): sin esto, quien paso el
+ * onboarding sin dejar correo ni telefono no puede habilitarlo despues, y la
+ * unica salida que le queda es borrar el perfil y empezar de nuevo.
+ *
+ * El consentimiento queda registrado con su fecha en cada cambio, igual que la
+ * visibilidad: es revocable y auditable, no un booleano suelto.
+ */
+export async function setContacto(userId, { email, telefono, aceptaNotificaciones }) {
+  const row = await queryOne(
+    `UPDATE users
+     SET email = $2, telefono = $3, acepta_notificaciones = $4, updated_at = now()
+     WHERE id = $1
+     RETURNING *`,
+    [userId, email ?? null, telefono ?? null, aceptaNotificaciones]
+  );
+
+  if (row) {
+    await query(
+      `INSERT INTO consents (user_id, tipo, otorgado)
+       VALUES ($1, 'notificaciones', $2)`,
+      [userId, aceptaNotificaciones]
+    );
+  }
+
+  return toDomain(row);
+}
+
 export async function setVisibilidadEmpresas(userId, otorgado) {
   const row = await queryOne(
     `UPDATE users

@@ -13,7 +13,7 @@ import { Icono } from './Icono.jsx';
  */
 const ETAPAS = [
   { valor: 'guardado', etiqueta: 'Guardada', icono: 'marcador', siguiente: 'Prepararla' },
-  { valor: 'preparando', etiqueta: 'Preparando', icono: 'libro', siguiente: 'Ya apliqué' },
+  { valor: 'preparando', etiqueta: 'Preparando', icono: 'libro', siguiente: 'Ya postule' },
   { valor: 'aplicada', etiqueta: 'Aplicada', icono: 'enviar', siguiente: 'Me llamaron' },
   { valor: 'entrevista', etiqueta: 'En entrevista', icono: 'personas', siguiente: 'Cerrar' },
   { valor: 'finalizada', etiqueta: 'Finalizada', icono: 'check-circulo', siguiente: null }

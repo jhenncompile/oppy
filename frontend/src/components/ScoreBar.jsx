@@ -8,9 +8,12 @@ export function ScoreBar({ score }) {
   const valor = Math.max(0, Math.min(100, score));
 
   return (
-    <div className="flex items-center gap-3">
+    // La barra se achica en pantallas angostas en vez de empujar al texto
+    // fuera de la tarjeta: en 320px, 144px de barra mas "92% compatible" no
+    // entran, y lo que se perdia era el numero.
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <div
-        className="h-1.5 w-36 overflow-hidden rounded-full bg-score-track"
+        className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-score-track sm:w-36"
         role="progressbar"
         aria-valuenow={valor}
         aria-valuemin={0}

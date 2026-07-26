@@ -16,8 +16,8 @@ const LARGO_CODIGO = 6;
  * la persona limpio el navegador, cambio de telefono o esta en una computadora
  * prestada — hoy eso significa perder el perfil sin aviso.
  *
- * Sin contrasenia a proposito: se manda un codigo al contacto que ya dejo para
- * las notificaciones. Una contrasenia mas es una barrera mas para alguien que
+ * Sin clave a proposito: se manda un codigo al contacto que ya dejo para
+ * las notificaciones. Una clave mas es una barrera mas para alguien que
  * ya siente que las plataformas son complicadas.
  */
 export function Acceso() {
@@ -85,7 +85,7 @@ export function Acceso() {
     } catch {
       // El mensaje del servidor no se muestra crudo: se traduce a algo que la
       // persona pueda accionar.
-      setError('Ese codigo no es valido o ya vencio. Pedi uno nuevo.');
+      setError('Ese codigo no es valido o ya vencio. Pide uno nuevo.');
     } finally {
       setEnviando(false);
     }
@@ -101,14 +101,14 @@ export function Acceso() {
         {etapa === 'contacto' ? (
           <>
             <p className="mb-6 text-base leading-relaxed text-ink-secondary">
-              Escribi el correo o el telefono que dejaste cuando armaste tu
-              perfil. Te mando un codigo — no hace falta contrasenia.
+              Escribe el correo o el telefono que dejaste cuando armaste tu
+              perfil. Te mando un codigo — no hace falta clave.
             </p>
 
             <Campo
               nombre="contacto"
               etiqueta="Tu correo o telefono"
-              placeholder="vos@correo.com"
+              placeholder="tucorreo@ejemplo.com"
               valor={contacto}
               onCambiar={(e) => setContacto(e.target.value)}
             />
@@ -136,7 +136,7 @@ export function Acceso() {
           <>
             <p className="mb-6 text-base leading-relaxed text-ink-secondary">
               Te mande un codigo de {LARGO_CODIGO} digitos a{' '}
-              <strong className="text-ink">{contacto}</strong>. Vence en diez minutos.
+              <strong className="break-all text-ink">{contacto}</strong>. Vence en diez minutos.
             </p>
 
             <Campo

@@ -9,7 +9,7 @@ const PerfilContexto = createContext(null);
  * El perfil de la persona, disponible en toda la app.
  *
  * El id vive en localStorage y es toda la "sesion" que existe: Oppy no pide
- * cuenta ni contrasenia, porque cada paso extra antes de ver el valor es gente
+ * cuenta ni clave, porque cada paso extra antes de ver el valor es gente
  * que abandona. Al volver a entrar, el perfil se recupera solo.
  *
  * Si el id guardado ya no existe en el servidor — base recreada, perfil

@@ -7,7 +7,13 @@ import { fuentesActivas, fuentesPorEstrategia, ESTRATEGIAS } from '../src/servic
 import { combinacionesDeBusqueda } from '../src/services/scraping/discovery.js';
 import { extraerJson } from '../src/services/llm/index.js';
 import { calcularHash } from '../src/services/agent/normalizer.js';
-import { mensajeDeOportunidad } from '../src/services/notifications/templates.js';
+import {
+  mensajeDeOportunidad,
+  mensajeDeAcceso,
+  mensajeDeRecordatorio,
+  mensajeDeCierreGuardada
+} from '../src/services/notifications/templates.js';
+import { coincide, derivar, generarCodigo } from '../src/services/auth/codigo.js';
 import { AppError } from '../src/utils/AppError.js';
 import {
   perfilAOppy,
@@ -424,4 +430,142 @@ test('orquestador: categoriasPara respeta el objetivo', () => {
   assert.deepEqual(categoriasPara({ objetivos: ['empleo'] }), ['empleo', 'pasantia']);
   assert.deepEqual(categoriasPara({ objetivos: ['voluntariado'] }), ['voluntariado']);
   assert.ok(categoriasPara({ objetivos: ['empleo', 'beca'] }).includes('beca'));
+});
+
+// ---------------------------------------------------------------------------
+// Acceso por codigo. Contrato en docs/12-auth.md.
+//
+// Se prueba aca y no contra el servidor porque el mecanismo es puro: si el
+// codigo se guarda mal o se compara mal, no hay base de datos que lo salve.
+// ---------------------------------------------------------------------------
+
+test('acceso: el codigo son 6 digitos, con ceros a la izquierda incluidos', () => {
+  for (let i = 0; i < 200; i += 1) {
+    assert.match(generarCodigo(), /^\d{6}$/);
+  }
+});
+
+test('acceso: dos codigos seguidos no son el mismo', () => {
+  const muestras = new Set(Array.from({ length: 50 }, () => generarCodigo()));
+  // Con 10^6 posibilidades, 50 iguales seria randomInt roto, no mala suerte.
+  assert.ok(muestras.size > 40);
+});
+
+test('acceso: el codigo derivado verifica contra si mismo', () => {
+  const guardado = derivar('483920');
+  assert.ok(coincide('483920', guardado));
+});
+
+test('acceso: un codigo equivocado no verifica', () => {
+  const guardado = derivar('483920');
+  assert.equal(coincide('483921', guardado), false);
+  assert.equal(coincide('000000', guardado), false);
+  assert.equal(coincide('', guardado), false);
+});
+
+test('acceso: el mismo codigo derivado dos veces da hashes distintos', () => {
+  // Si la sal no fuera por codigo, dos personas con el mismo numero
+  // compartirian hash y una tabla precalculada las abriria a las dos.
+  assert.notEqual(derivar('483920'), derivar('483920'));
+});
+
+test('acceso: el codigo nunca queda guardado en claro', () => {
+  const guardado = derivar('483920');
+  assert.equal(guardado.includes('483920'), false);
+});
+
+test('acceso: un hash guardado corrupto no abre la puerta', () => {
+  // Nada de esto deberia existir en la base, pero si aparece la respuesta
+  // correcta es "no", no una excepcion que devuelva 500.
+  for (const roto of ['', 'sin-dos-puntos', 'sal:', ':hash', null, undefined]) {
+    assert.equal(coincide('483920', roto), false);
+  }
+});
+
+test('acceso: el mensaje trae el codigo, la vigencia y la salida para quien no lo pidio', () => {
+  const texto = mensajeDeAcceso({
+    perfil: { nombre: 'Maria' },
+    codigo: '483920',
+    minutos: 10
+  });
+
+  assert.match(texto, /Maria/);
+  assert.match(texto, /483920/);
+  assert.match(texto, /10 minutos/);
+  assert.match(texto, /no hagas nada/i);
+
+  // Sin enlaces: un mensaje inesperado con algo para apretar tiene la forma
+  // exacta de una estafa, y es la gente de Oppy la mas expuesta a eso.
+  assert.equal(/https?:\/\//.test(texto), false);
+});
+
+test('acceso: el mensaje funciona sin nombre', () => {
+  const texto = mensajeDeAcceso({ perfil: {}, codigo: '000123', minutos: 10 });
+  assert.match(texto, /^Hola, soy Oppy/);
+  assert.match(texto, /000123/);
+});
+
+test('recordatorio: dice que lo anoto la persona, no que Oppy lo encontro', () => {
+  // Es la diferencia entre un recordatorio pedido y un mensaje no solicitado.
+  // Si el texto sonara a recomendacion, Oppy estaria empujando algo que nadie
+  // verifico — que es exactamente la forma de una estafa laboral.
+  const texto = mensajeDeRecordatorio({
+    persona: { nombre: 'Maria' },
+    propia: {
+      titulo: 'Ayudante de cocina en el centro',
+      organizacion: 'Restaurante Sucre',
+      donde: 'me lo paso una conocida',
+      fechaLimite: '2026-08-01'
+    },
+    hoy: new Date('2026-07-29T10:00:00Z')
+  });
+
+  assert.match(texto, /anotaste vos/);
+  assert.doesNotMatch(texto, /Encontre algo/);
+  assert.match(texto, /Cierra en 3 dias/);
+  assert.match(texto, /me lo paso una conocida/);
+});
+
+test('recordatorio: sin fecha limite no inventa un plazo', () => {
+  const texto = mensajeDeRecordatorio({
+    persona: {},
+    propia: { titulo: 'Puesto en la ferreteria' }
+  });
+
+  assert.match(texto, /Puesto en la ferreteria/);
+  assert.doesNotMatch(texto, /Cierra/);
+});
+
+test('recordatorio de guardada: nombra la fuente, que es lo que Oppy si reviso', () => {
+  const texto = mensajeDeCierreGuardada({
+    persona: { nombre: 'Diego' },
+    match: {
+      oportunidad: {
+        titulo: 'Beca MEXT 2027',
+        fuente: { nombre: 'Embajada de Japon en Bolivia', url: 'https://ej.bo' },
+        linkAplicacion: 'https://ej.bo/becas',
+        fechaLimite: '2026-07-27'
+      }
+    },
+    hoy: new Date('2026-07-26T10:00:00Z')
+  });
+
+  assert.match(texto, /que guardaste/);
+  assert.match(texto, /Embajada de Japon en Bolivia/);
+  assert.match(texto, /Cierra maniana/);
+  assert.match(texto, /https:\/\/ej\.bo\/becas/);
+});
+
+test('los dos recordatorios se distinguen: uno lo guardo, el otro lo anoto', () => {
+  // Si los dos textos fueran iguales, la persona no podria saber si Oppy vio la
+  // fuente o si solo esta repitiendo algo que ella escribio.
+  const guardada = mensajeDeCierreGuardada({
+    persona: {},
+    match: { oportunidad: { titulo: 'X', fuente: { nombre: 'Fuente oficial' } } }
+  });
+  const anotada = mensajeDeRecordatorio({ persona: {}, propia: { titulo: 'X' } });
+
+  assert.notEqual(guardada, anotada);
+  assert.match(guardada, /guardaste/);
+  assert.match(anotada, /anotaste vos/);
 });

@@ -4,7 +4,7 @@ import { api } from '../api/client.js';
 const AccesoContexto = createContext(null);
 
 /**
- * Acceso por codigo, sin contrasenia.
+ * Acceso por codigo, sin clave.
  *
  * El backend todavia no existe (ver docs/12-auth.md). Este proveedor pregunta
  * una sola vez si la capacidad esta disponible y, si no lo esta, deja todo

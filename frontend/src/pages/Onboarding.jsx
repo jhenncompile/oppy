@@ -51,7 +51,7 @@ const HABILIDADES = [
   { valor: 'computacion_basica', etiqueta: 'Computacion basica' },
   { valor: 'excel', etiqueta: 'Excel' },
   { valor: 'redes_sociales', etiqueta: 'Redes sociales' },
-  { valor: 'ensenanza', etiqueta: 'Ensenar' },
+  { valor: 'ensenanza', etiqueta: 'Dar clases' },
   { valor: 'cocina', etiqueta: 'Cocina' },
   { valor: 'costura', etiqueta: 'Costura' },
   { valor: 'construccion', etiqueta: 'Construccion' },
@@ -63,7 +63,7 @@ const HABILIDADES = [
  * encabezado del paso deja claro que es informacion para buscar mejor.
  */
 const RESTRICCIONES = [
-  { valor: 'horario_manana', etiqueta: 'Solo por la maniana' },
+  { valor: 'horario_manana', etiqueta: 'Solo antes del mediodia' },
   { valor: 'horario_tarde', etiqueta: 'Solo por la tarde' },
   { valor: 'horario_noche', etiqueta: 'Solo por la noche' },
   { valor: 'solo_fines_de_semana', etiqueta: 'Solo fines de semana' },
@@ -122,7 +122,7 @@ function Progreso({ paso, total }) {
     <div className="mb-10">
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-medium text-ink-accent">Paso {paso} de {total}</p>
-        <p className="text-xs text-ink-secondary">Podes volver atras cuando quieras</p>
+        <p className="text-xs text-ink-secondary">Puedes volver atras cuando quieras</p>
       </div>
       <div
         className="mt-2 h-1.5 overflow-hidden rounded-full bg-score-track"
@@ -258,7 +258,7 @@ export function Onboarding() {
         <Progreso paso={paso} total={TOTAL} />
 
         {paso === 1 && (
-          <Pregunta titulo="Empecemos por vos" ayuda="Nada de esto es obligatorio salvo donde vivis.">
+          <Pregunta titulo="Empecemos por ti" ayuda="Nada de esto es obligatorio salvo donde vives.">
             <Campo
               nombre="nombre"
               etiqueta="Como te llamas?"
@@ -268,8 +268,8 @@ export function Onboarding() {
               onCambiar={setTexto('nombre')}
             />
             <Opciones
-              leyenda="Que edad tenes?"
-              ayuda="Ayuda a filtrar convocatorias con limite de edad. Podes saltearlo."
+              leyenda="Que edad tienes?"
+              ayuda="Ayuda a filtrar convocatorias con limite de edad. Puedes omitirlo."
               opciones={RANGOS_EDAD}
               seleccion={v.rangoEdad}
               onCambiar={set('rangoEdad')}
@@ -277,7 +277,7 @@ export function Onboarding() {
             />
             <Selector
               nombre="ciudad"
-              etiqueta="Donde vivis?"
+              etiqueta="Donde vives?"
               ayuda="Para buscarte cosas cerca."
               opciones={[...CIUDADES, 'Otra']}
               valor={v.ciudad}
@@ -286,7 +286,7 @@ export function Onboarding() {
             {v.ciudad === 'Otra' && (
               <Campo
                 nombre="otraCiudad"
-                etiqueta="Contame donde"
+                etiqueta="Cuentame donde"
                 placeholder="Villamontes"
                 valor={v.otraCiudad}
                 onCambiar={setTexto('otraCiudad')}
@@ -296,9 +296,9 @@ export function Onboarding() {
         )}
 
         {paso === 2 && (
-          <Pregunta titulo="Que estas buscando?" ayuda="Podes elegir hasta tres cosas.">
+          <Pregunta titulo="Que estas buscando?" ayuda="Puedes elegir hasta tres cosas.">
             <Opciones
-              leyenda="Elegi lo que mas te interesa"
+              leyenda="Elige lo que mas te interesa"
               ayuda={
                 v.objetivos.length === 0
                   ? 'Lo primero que marques queda como principal.'
@@ -316,7 +316,7 @@ export function Onboarding() {
         {paso === 3 && (
           <Pregunta
             titulo="Que hiciste antes?"
-            ayuda="No hace falta que sea un trabajo formal. Contame todo lo que hiciste."
+            ayuda="No hace falta que sea un trabajo formal. Cuentame todo lo que hiciste."
           >
             <Opciones
               leyenda="Marca todo lo que aplique"
@@ -354,7 +354,7 @@ export function Onboarding() {
             <Campo
               nombre="carrera"
               etiqueta="A que te dedicas o que estudiaste?"
-              ayuda="Si no estudiaste, escribi a que te dedicas. Vale poner 'sin estudios formales'."
+              ayuda="Si no estudiaste, escribe a que te dedicas. Vale poner 'sin estudios formales'."
               placeholder="Administracion"
               required
               valor={v.carrera}
@@ -373,7 +373,7 @@ export function Onboarding() {
         {paso === 5 && (
           <Pregunta
             titulo="Hay algo que deba tener en cuenta?"
-            ayuda="Esto me ayuda a no recomendarte cosas a las que no podes llegar."
+            ayuda="Esto me ayuda a no recomendarte cosas a las que no puedes llegar."
           >
             <Opciones
               leyenda="Marca lo que corresponda"
@@ -388,7 +388,7 @@ export function Onboarding() {
           <Pregunta titulo="Listo. Esto es lo que entendi" ayuda="Revisa que este bien antes de que empiece a buscar.">
             <div className="rounded-lg border border-line-subtle bg-surface-subtle p-4">
               <Resumen etiqueta="Nombre" valor={v.nombre} />
-              <Resumen etiqueta="Donde vivis" valor={ubicacion} />
+              <Resumen etiqueta="Donde vives" valor={ubicacion} />
               <Resumen etiqueta="Buscas" valor={v.objetivos.map(etiquetaObjetivo).join(', ')} />
               <Resumen etiqueta="Te dedicas a" valor={v.carrera} />
               <Resumen etiqueta="Estudios" valor={v.nivelEstudios} />
@@ -401,11 +401,11 @@ export function Onboarding() {
               <div>
                 <p className="flex items-center gap-2 text-base font-medium text-ink">
                   <Icono nombre="campana" tamanio={17} className="text-ink-accent" />
-                  Queres que te avise?
+                  Quieres que te avise?
                 </p>
                 <p className="mt-1 text-sm text-ink-secondary">
                   Sigo buscando aunque no entres. Si dejas un contacto, te escribo
-                  solo cuando encuentro algo que de verdad calza con vos.
+                  solo cuando encuentro algo que de verdad calza con tu perfil.
                 </p>
               </div>
 
@@ -416,7 +416,7 @@ export function Onboarding() {
                     etiqueta="Correo"
                     type="email"
                     opcional
-                    placeholder="vos@correo.com"
+                    placeholder="tucorreo@ejemplo.com"
                     valor={v.email}
                     onCambiar={setTexto('email')}
                   />

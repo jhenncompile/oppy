@@ -46,11 +46,32 @@ export const api = {
   actualizarMatch: (matchId, estado) =>
     pedir(`/matches/${matchId}`, { method: 'PATCH', body: JSON.stringify({ estado }) }),
 
+  /** Contacto para avisos y para recuperar el acceso: el mismo dato, un permiso. */
+  actualizarContacto: (userId, contacto) =>
+    pedir(`/profiles/${userId}/contacto`, {
+      method: 'PATCH',
+      body: JSON.stringify(contacto)
+    }),
+
   actualizarVisibilidad: (userId, visibleParaEmpresas) =>
     pedir(`/profiles/${userId}/visibilidad`, {
       method: 'PATCH',
       body: JSON.stringify({ visibleParaEmpresas })
     }),
+
+  // --- La libreta propia: lo que la persona encontro por su cuenta. --------
+  // Privada y aparte del indice compartido, asi que todas las operaciones
+  // llevan el userId: sin auth, es lo unico que ata una libreta a su dueña.
+  obtenerPropias: (userId) => pedir(`/propias?userId=${userId}`),
+
+  crearPropia: (propia) =>
+    pedir('/propias', { method: 'POST', body: JSON.stringify(propia) }),
+
+  actualizarPropia: (id, userId, estado) =>
+    pedir(`/propias/${id}`, { method: 'PATCH', body: JSON.stringify({ userId, estado }) }),
+
+  eliminarPropia: (id, userId) =>
+    pedir(`/propias/${id}?userId=${userId}`, { method: 'DELETE' }),
 
   /** Telemetria: nunca debe romper la interfaz si falla. */
   registrarEvento: (evento) =>

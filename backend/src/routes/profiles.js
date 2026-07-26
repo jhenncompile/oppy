@@ -49,6 +49,19 @@ const visibilidadSchema = z.object({
   visibleParaEmpresas: z.boolean()
 });
 
+// Al menos uno de los dos contactos, o no hay a donde mandar nada. `refine` y
+// no dos campos requeridos: obligar a los dos seria pedir un telefono a quien
+// solo usa correo.
+const contactoSchema = z
+  .object({
+    email: z.string().email().max(160).nullish(),
+    telefono: z.string().min(8).max(20).nullish(),
+    aceptaNotificaciones: z.boolean()
+  })
+  .refine((datos) => !datos.aceptaNotificaciones || datos.email || datos.telefono, {
+    message: 'Hace falta un correo o un telefono para poder avisarte'
+  });
+
 profilesRouter.post(
   '/',
   validarBody(perfilSchema),
@@ -70,6 +83,23 @@ profilesRouter.get(
   validarParamUuid(),
   asyncHandler(async (req, res) => {
     const perfil = await userRepository.findById(req.params.id);
+    if (!perfil) throw AppError.notFound('Perfil no encontrado');
+    res.json({ perfil });
+  })
+);
+
+/**
+ * Contacto para avisos y para el acceso. Contrato en docs/12-auth.md.
+ *
+ * Es el mismo dato para las dos cosas y el mismo consentimiento: quien dijo que
+ * no queria mensajes tampoco recibe codigos de acceso.
+ */
+profilesRouter.patch(
+  '/:id/contacto',
+  validarParamUuid(),
+  validarBody(contactoSchema),
+  asyncHandler(async (req, res) => {
+    const perfil = await userRepository.setContacto(req.params.id, req.body);
     if (!perfil) throw AppError.notFound('Perfil no encontrado');
     res.json({ perfil });
   })

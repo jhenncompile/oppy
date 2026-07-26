@@ -129,11 +129,63 @@ ya devuelve un resultado normalizado y nunca lanza.
 
 ## Qué está construido y qué no
 
+**Está completo, de punta a punta.**
+
 | | |
 |---|---|
-| Detección de capacidad, pantalla de acceso, ingreso del código, estados de error y reenvío | ✅ frontend, listo |
-| Entrada discreta desde *Mi perfil* — "Guardá tu acceso" | ✅ frontend, listo |
-| Los tres endpoints, la tabla y el envío del código | ○ backend, pendiente |
+| Detección de capacidad, pantalla de acceso, ingreso del código, errores y reenvío | ✅ `frontend/src/pages/Acceso.jsx` |
+| Bloque *Volver a entrar* en **Mi perfil**, con formulario de contacto | ✅ `frontend/src/pages/Perfil.jsx` |
+| Los tres endpoints | ✅ `backend/src/routes/auth.js` |
+| Tabla `codigos_acceso` con RLS | ✅ `backend/src/db/schema.sql` |
+| Generación, hash y verificación del código | ✅ `backend/src/services/auth/codigo.js` |
+| Cambiar el contacto de un perfil ya creado | ✅ `PATCH /profiles/:id/contacto` |
+
+### El cuarto endpoint
+
+`profiles.js` no tenía forma de agregar un correo o un teléfono a un perfil que
+ya existe, y sin eso quien pasó el onboarding sin dejar contacto no podía
+habilitar el acceso después — su única salida era *Empezar de cero*, que borra el
+perfil. Justo lo que esto venía a evitar.
+
+```jsonc
+// PATCH /profiles/:id/contacto
+{ "email": "maria@correo.com", "telefono": null, "aceptaNotificaciones": true }
+```
+
+Rige la misma regla que el resto del contacto: el consentimiento queda registrado
+en `consents` con su fecha, y aceptar avisos sin dejar ningún contacto se
+rechaza con 400 — sería una fila marcada como notificable sin destinatario.
+
+---
+
+## Cómo se prueba
+
+El código se guarda hasheado, así que **no se puede leer de la base**: para
+probar el flujo completo hay que recibirlo de verdad.
+
+- **Con la clave `zv_test_…`** (`isTestMode`), Zavu acepta el envío sin gastar
+  saldo ni entregar. Sirve para ejercitar el flujo sin costo.
+- **Con la clave `zv_live_…`**, el código llega de verdad al correo o al
+  teléfono. Es lo que hay que usar en el demo.
+
+Las dos están en `backend/.env`; se cambia cuál está comentada.
+
+Lo que se verifica sin enviar nada:
+
+```bash
+npm test          # 64 pruebas — incluye hash, vigencia, intentos y validacion
+```
+
+### Reglas verificadas por prueba
+
+| Regla | Dónde |
+|---|---|
+| El código nunca queda en claro, ni siquiera hasheado sin sal | `unit.test.js` |
+| Un hash corrupto en la base responde "no", no 500 | `unit.test.js` |
+| El mensaje no lleva enlaces | `unit.test.js` |
+| `POST /auth/codigo` responde igual exista el contacto o no | `api.test.js` |
+| Un código que no son 6 dígitos se rechaza antes de tocar la base | `api.test.js` |
+| Aceptar avisos sin contacto se rechaza | `api.test.js` |
 
 El frontend vive en `frontend/src/hooks/useAcceso.jsx` y
 `frontend/src/pages/Acceso.jsx`. **No toca ningún archivo del backend**, así que

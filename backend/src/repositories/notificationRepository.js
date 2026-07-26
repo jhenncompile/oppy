@@ -7,6 +7,7 @@ function toDomain(row) {
     userId: row.user_id,
     opportunityId: row.opportunity_id,
     canal: row.canal,
+    tipo: row.tipo,
     estado: row.estado,
     mensajeId: row.mensaje_id,
     error: row.error,
@@ -21,18 +22,26 @@ function toDomain(row) {
  * siguiente sale bien, interesa el ultimo estado. Lo que el UNIQUE garantiza es
  * que a una persona no se le avisa dos veces de la misma oportunidad.
  */
-export async function registrar({ userId, opportunityId, canal, estado, mensajeId, error }) {
+export async function registrar({
+  userId,
+  opportunityId,
+  canal,
+  estado,
+  mensajeId,
+  error,
+  tipo = 'match_alto'
+}) {
   const row = await queryOne(
-    `INSERT INTO notificaciones (user_id, opportunity_id, canal, estado, mensaje_id, error)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (user_id, opportunity_id) DO UPDATE SET
+    `INSERT INTO notificaciones (user_id, opportunity_id, canal, estado, mensaje_id, error, tipo)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (user_id, opportunity_id, tipo) DO UPDATE SET
        canal      = EXCLUDED.canal,
        estado     = EXCLUDED.estado,
        mensaje_id = EXCLUDED.mensaje_id,
        error      = EXCLUDED.error,
        enviado_en = now()
      RETURNING *`,
-    [userId, opportunityId, canal ?? null, estado, mensajeId ?? null, error ?? null]
+    [userId, opportunityId, canal ?? null, estado, mensajeId ?? null, error ?? null, tipo]
   );
   return toDomain(row);
 }
@@ -42,11 +51,11 @@ export async function registrar({ userId, opportunityId, canal, estado, mensajeI
  * fallidos quedan fuera del conjunto a proposito, para que se reintenten en la
  * corrida siguiente.
  */
-export async function idsYaNotificados(userId) {
+export async function idsYaNotificados(userId, tipo = 'match_alto') {
   const { rows } = await query(
     `SELECT opportunity_id FROM notificaciones
-     WHERE user_id = $1 AND estado = 'enviado'`,
-    [userId]
+     WHERE user_id = $1 AND estado = 'enviado' AND tipo = $2`,
+    [userId, tipo]
   );
   return new Set(rows.map((row) => row.opportunity_id));
 }

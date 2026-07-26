@@ -60,7 +60,7 @@ export function OpportunityCard({ match, onGuardar, onSeguimiento }) {
       </header>
 
       <div className="flex flex-col gap-1">
-        <h3 className="text-lg font-semibold leading-snug text-ink">{oportunidad.titulo}</h3>
+        <h3 className="break-words text-lg font-semibold leading-snug text-ink">{oportunidad.titulo}</h3>
         <p className="text-xs text-ink-secondary">
           {oportunidad.fuente.nombre} · actualizado{' '}
           {new Date(oportunidad.fechaExtraida).toLocaleDateString('es-BO')}
@@ -74,7 +74,7 @@ export function OpportunityCard({ match, onGuardar, onSeguimiento }) {
       <div className="rounded-md bg-surface-accent p-4">
         <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-accent">
           <Icono nombre="chispas" tamanio={13} />
-          Por que calza con vos
+          Por que calza con tu perfil
         </p>
         <ul className="mt-2 flex flex-col gap-1.5">
           {match.razones?.map((razon) => (

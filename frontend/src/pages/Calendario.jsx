@@ -1,10 +1,10 @@
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Panel, PanelTitulo } from '../components/Panel.jsx';
 import { Button } from '../components/Button.jsx';
 import { TrustBadge } from '../components/TrustBadge.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
-import { useMatchesCompartidos } from '../Layout.jsx';
-import { diasRestantes, enSeguimiento } from '../hooks/useMatches.js';
+import { useMatchesCompartidos, usePropiasCompartidas } from '../Layout.jsx';
+import { filasConFecha } from '../hooks/usePropias.js';
 import { Icono } from '../components/Icono.jsx';
 
 /**
@@ -13,6 +13,10 @@ import { Icono } from '../components/Icono.jsx';
  * Es una lista ordenada por fecha y no una grilla mensual a proposito: un
  * calendario apretado en 360px no lo usa nadie, y lo que la persona necesita
  * saber es "que se me viene", no "que dia de la semana cae".
+ *
+ * Entran las dos fuentes: lo que guardo de las recomendaciones y lo que anoto
+ * por su cuenta. Un plazo es un plazo — un calendario que solo conoce la mitad
+ * de los compromisos de alguien no sirve para organizarse.
  */
 const FORMATO = new Intl.DateTimeFormat('es-BO', {
   weekday: 'long',
@@ -20,45 +24,70 @@ const FORMATO = new Intl.DateTimeFormat('es-BO', {
   month: 'long'
 });
 
-function agrupar(matches) {
+function agrupar(filas) {
   const grupos = new Map();
 
-  for (const match of matches) {
-    const dias = diasRestantes(match.oportunidad.fechaLimite);
-    if (dias === null || dias < 0) continue;
-
+  for (const fila of filas) {
     const clave =
-      dias === 0 ? 'Hoy' : dias === 1 ? 'Maniana' : dias <= 7 ? 'Esta semana' : 'Mas adelante';
+      fila.dias === 0
+        ? 'Hoy'
+        : fila.dias === 1
+          ? 'En 1 dia'
+          : fila.dias <= 7
+            ? 'Esta semana'
+            : 'Mas adelante';
 
     if (!grupos.has(clave)) grupos.set(clave, []);
-    grupos.get(clave).push({ match, dias });
+    grupos.get(clave).push(fila);
   }
 
-  for (const lista of grupos.values()) lista.sort((a, b) => a.dias - b.dias);
   return grupos;
 }
 
-const ORDEN = ['Hoy', 'Maniana', 'Esta semana', 'Mas adelante'];
+const ORDEN = ['Hoy', 'En 1 dia', 'Esta semana', 'Mas adelante'];
 
 // Lo que vence hoy lleva triangulo y no reloj: es la unica fila donde ya no
 // queda margen para postergarlo.
 const ICONOS = {
   Hoy: 'alerta',
-  Maniana: 'reloj',
+  'En 1 dia': 'reloj',
   'Esta semana': 'calendario',
   'Mas adelante': 'calendario'
 };
 
+/** Lleva al detalle solo si Oppy tiene algo que contar sobre eso. */
+function Titulo({ fila }) {
+  const clases = 'font-medium text-ink underline-offset-2 hover:underline';
+
+  if (fila.rutaDetalle) {
+    return (
+      <Link to={fila.rutaDetalle} className={clases}>
+        {fila.titulo}
+      </Link>
+    );
+  }
+
+  if (fila.enlace) {
+    return (
+      <a href={fila.enlace} target="_blank" rel="noopener noreferrer" className={clases}>
+        {fila.titulo}
+      </a>
+    );
+  }
+
+  return <span className="font-medium text-ink">{fila.titulo}</span>;
+}
+
 export function Calendario() {
   const { perfil } = usePerfil();
   const { matches } = useMatchesCompartidos();
+  const { propias } = usePropiasCompartidas();
   const navegar = useNavigate();
 
   if (!perfil) return <Navigate to="/" replace />;
 
-  const seguidas = matches.filter(enSeguimiento);
-  const grupos = agrupar(seguidas);
-  const total = [...grupos.values()].reduce((suma, lista) => suma + lista.length, 0);
+  const filas = filasConFecha({ matches, propias });
+  const grupos = agrupar(filas);
 
   return (
     <Panel>
@@ -66,13 +95,13 @@ export function Calendario() {
         <PanelTitulo sobretitulo="Fechas">Proximos cierres</PanelTitulo>
       </div>
 
-      {total === 0 ? (
+      {filas.length === 0 ? (
         <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-6 text-center">
           <Icono nombre="calendario" tamanio={40} className="text-ink-secondary" />
-          <p className="text-lg font-medium text-ink">No tenes fechas por delante.</p>
+          <p className="text-lg font-medium text-ink">No tienes fechas por delante.</p>
           <p className="text-sm text-ink-secondary">
-            Aca aparecen los cierres de las oportunidades que vayas guardando,
-            ordenados por lo que se viene primero.
+            Aca aparecen los cierres de las oportunidades que vayas guardando y de
+            las que anotes, ordenados por lo que se viene primero.
           </p>
           <Button variante="primario" onClick={() => navegar('/oportunidades')}>
             <Icono nombre="brujula" tamanio={16} />
@@ -93,29 +122,43 @@ export function Calendario() {
               </h3>
 
               <ul className="mt-3 flex flex-col gap-2">
-                {grupos.get(clave).map(({ match, dias }) => (
+                {grupos.get(clave).map((fila) => (
                   <li
-                    key={match.id}
+                    key={fila.clave}
                     className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line-subtle bg-surface-subtle p-4"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-ink">{match.oportunidad.titulo}</p>
+                      <Titulo fila={fila} />
                       <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-secondary">
                         <Icono nombre="calendario" tamanio={13} />
-                        {FORMATO.format(new Date(match.oportunidad.fechaLimite))} ·{' '}
-                        {match.oportunidad.fuente.nombre}
+                        {FORMATO.format(new Date(fila.fechaLimite))}
+                        {fila.subtitulo && ` · ${fila.subtitulo}`}
                       </p>
                     </div>
 
-                    <TrustBadge confianza={match.oportunidad.confianza} />
+                    {/* Sin semaforo para lo anotado a mano: Oppy no reviso esa
+                        fuente y no puede afirmar nada sobre ella. Lo que si
+                        dice es quien la puso ahi. */}
+                    {fila.propia ? (
+                      <span className="pill bg-surface-accent text-ink-accent">
+                        <Icono nombre="marcador" tamanio={13} relleno />
+                        La anotaste tu
+                      </span>
+                    ) : (
+                      <TrustBadge confianza={fila.confianza} />
+                    )}
 
                     <span
                       className={[
                         'text-sm font-medium',
-                        dias <= 3 ? 'text-trust-stale-text' : 'text-ink-secondary'
+                        fila.dias <= 3 ? 'text-trust-stale-text' : 'text-ink-secondary'
                       ].join(' ')}
                     >
-                      {dias === 0 ? 'Hoy' : dias === 1 ? 'En 1 dia' : `En ${dias} dias`}
+                      {fila.dias === 0
+                        ? 'Hoy'
+                        : fila.dias === 1
+                          ? 'En 1 dia'
+                          : `En ${fila.dias} dias`}
                     </span>
                   </li>
                 ))}

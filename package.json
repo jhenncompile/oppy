@@ -16,6 +16,7 @@
     "migrate": "npm run migrate --prefix backend",
     "seed": "npm run seed --prefix backend",
     "cron": "node scripts/oppy.mjs agente",
+    "recordatorios": "npm run recordatorios --prefix backend",
     "build": "npm run build --prefix frontend"
   }
 }

@@ -2,14 +2,24 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Navegacion } from './components/Navegacion.jsx';
 import { ThemeToggle } from './components/ThemeToggle.jsx';
 import { usePerfil } from './hooks/usePerfil.jsx';
-import { useMatches, contarCierranPronto } from './hooks/useMatches.js';
+import { useMatches } from './hooks/useMatches.js';
+import { usePropias, filasConFecha } from './hooks/usePropias.js';
 import { createContext, useContext } from 'react';
+import { CIERRA_PRONTO_DIAS } from './hooks/useMatches.js';
 
 const MatchesContexto = createContext(null);
+const PropiasContexto = createContext(null);
 
 export function useMatchesCompartidos() {
   const contexto = useContext(MatchesContexto);
   if (!contexto) throw new Error('useMatchesCompartidos necesita el Layout');
+  return contexto;
+}
+
+/** La libreta propia, compartida por el seguimiento y el calendario. */
+export function usePropiasCompartidas() {
+  const contexto = useContext(PropiasContexto);
+  if (!contexto) throw new Error('usePropiasCompartidas necesita el Layout');
   return contexto;
 }
 
@@ -25,10 +35,19 @@ export function Layout() {
   const { perfil } = usePerfil();
   const { pathname } = useLocation();
   const matches = useMatches(perfil?.id);
+  const propias = usePropias(perfil?.id);
 
   const conNavegacion = perfil && !SIN_NAVEGACION.includes(pathname);
 
+  // El aviso de la navegacion cuenta las dos fuentes: para la persona, que un
+  // plazo lo haya encontrado el agente o lo haya anotado ella no cambia nada.
+  const cierranPronto = filasConFecha({
+    matches: matches.matches,
+    propias: propias.propias
+  }).filter((fila) => fila.dias <= CIERRA_PRONTO_DIAS).length;
+
   return (
+    <PropiasContexto.Provider value={propias}>
     <MatchesContexto.Provider value={matches}>
       <div className="min-h-screen bg-surface-page px-3 py-3 sm:px-6 sm:py-6">
         {/* Requisito de teclado: saltar el menu para llegar al contenido. */}
@@ -40,7 +59,7 @@ export function Layout() {
         </a>
 
         <div className="mx-auto flex max-w-6xl gap-6">
-          {conNavegacion && <Navegacion cierranPronto={contarCierranPronto(matches.matches)} />}
+          {conNavegacion && <Navegacion cierranPronto={cierranPronto} />}
 
           <main
             id="contenido"
@@ -53,13 +72,19 @@ export function Layout() {
 
             <Outlet />
 
-            <footer className="px-6 py-8 text-center text-xs text-ink-secondary">
-              Oppy no busca oportunidades para llenar vacantes; busca oportunidades
-              para que las personas puedan avanzar.
+            <footer className="flex flex-col items-center gap-2 px-4 py-8 text-center text-xs text-ink-secondary sm:px-6">
+              <p className="max-w-md text-balance">
+                Oppy no busca oportunidades para llenar vacantes; busca oportunidades
+                para que las personas puedan avanzar.
+              </p>
+              <p>
+                Hecho por <span className="font-medium text-ink">Los Palomillos</span>
+              </p>
             </footer>
           </main>
         </div>
       </div>
     </MatchesContexto.Provider>
+    </PropiasContexto.Provider>
   );
 }

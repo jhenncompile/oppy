@@ -65,7 +65,7 @@ async function notificarPerfil(perfil) {
       minScore: env.NOTIF_MATCH_THRESHOLD,
       limit: 20
     }),
-    notificationRepository.idsYaNotificados(perfil.id)
+    notificationRepository.idsYaNotificados(perfil.id, 'match_alto')
   ]);
 
   // El tope por corrida es deliberado: cinco mensajes seguidos no son un
@@ -87,7 +87,10 @@ async function notificarPerfil(perfil) {
       canal: resultado.canal,
       estado: resultado.exito ? 'enviado' : 'fallido',
       mensajeId: resultado.mensajeId,
-      error: resultado.error
+      error: resultado.error,
+      // Este job avisa de lo que aparecio; el recordatorio de cierre es otro
+      // aviso sobre la misma oportunidad y lleva su propio tipo.
+      tipo: 'match_alto'
     });
 
     if (resultado.exito) enviadas += 1;

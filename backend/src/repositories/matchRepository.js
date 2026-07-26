@@ -89,6 +89,66 @@ export async function actualizarEstado(matchId, estado) {
   return toDomain(row);
 }
 
+/**
+ * Recomendaciones que la persona puso en seguimiento y estan por cerrar.
+ *
+ * Es el lado del agente del mismo recordatorio que reciben las oportunidades
+ * anotadas a mano: para quien esta buscando, un plazo es un plazo — que lo haya
+ * encontrado Oppy o lo haya anotado ella no cambia nada.
+ *
+ * Solo lo que la persona guardo. Recordar un plazo de algo que apenas se le
+ * recomendo y todavia no mirO seria empujar, no acompaniar.
+ *
+ * El NOT EXISTS es la idempotencia: se avisa una sola vez del cierre de cada
+ * oportunidad, y es independiente del aviso de "match alto" porque cada uno
+ * lleva su propio `tipo`.
+ */
+export async function pendientesDeCierre({ dias = 3 } = {}) {
+  const { rows } = await query(
+    `SELECT m.id, m.user_id, m.estado,
+            o.id AS opportunity_id, o.titulo, o.fecha_limite, o.fuente_nombre,
+            o.link_aplicacion, o.fuente_url,
+            u.nombre AS persona_nombre, u.email, u.telefono
+     FROM matches m
+     JOIN opportunities o ON o.id = m.opportunity_id
+     JOIN users u ON u.id = m.user_id
+     WHERE m.estado IN ('guardado', 'preparando', 'aplicada', 'entrevista')
+       AND o.estado = 'vigente'
+       AND o.fecha_limite IS NOT NULL
+       AND o.fecha_limite >= CURRENT_DATE
+       AND o.fecha_limite <= CURRENT_DATE + ($1 || ' days')::interval
+       AND u.acepta_notificaciones = TRUE
+       AND (u.email IS NOT NULL OR u.telefono IS NOT NULL)
+       AND NOT EXISTS (
+         SELECT 1 FROM notificaciones n
+         WHERE n.user_id = m.user_id
+           AND n.opportunity_id = o.id
+           AND n.tipo = 'cierre_proximo'
+           AND n.estado = 'enviado'
+       )
+     ORDER BY o.fecha_limite ASC`,
+    [String(dias)]
+  );
+
+  return rows.map((row) => ({
+    matchId: row.id,
+    estado: row.estado,
+    oportunidad: {
+      id: row.opportunity_id,
+      titulo: row.titulo,
+      fechaLimite: row.fecha_limite,
+      fuente: { nombre: row.fuente_nombre, url: row.fuente_url },
+      linkAplicacion: row.link_aplicacion
+    },
+    persona: {
+      id: row.user_id,
+      nombre: row.persona_nombre,
+      email: row.email,
+      telefono: row.telefono
+    }
+  }));
+}
+
 /** IDs ya evaluados: evita gastar tokens puntuando dos veces lo mismo. */
 export async function idsYaEvaluados(userId) {
   const { rows } = await query(

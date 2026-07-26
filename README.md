@@ -265,9 +265,33 @@ nivel de estudios y ubicacion.
 El seguimiento avanza `guardado → preparando → aplicada → entrevista →
 finalizada`; `descartado` se puede elegir en cualquier momento y es terminal.
 
-**Pendiente**: los tres endpoints de acceso (`/api/auth/*`). El frontend ya esta
-construido y los detecta ausentes por 404, asi que hoy esconde la funcionalidad
-sola. Contrato en [`docs/12-auth.md`](docs/12-auth.md).
+## Acceso
+
+Oppy no pide cuenta ni contrasenia, y eso no es una omision: cada paso antes de
+ver el valor es gente que abandona. Pero el `userId` vivia solo en
+`localStorage`, asi que limpiar el navegador o cambiar de telefono era perder el
+perfil sin aviso.
+
+La respuesta no es poner un login adelante. Es esto: **la persona usa Oppy
+primero y despues, desde Mi perfil, decide si quiere poder volver.** Se manda un
+codigo de 6 digitos al contacto que ya dejo, por el mismo Zavu de los avisos.
+
+| Metodo | Ruta | Que hace |
+|---|---|---|
+| `GET` | `/api/auth/estado` | Si el acceso se puede usar; `false` sin Zavu |
+| `POST` | `/api/auth/codigo` | Manda el codigo. **Siempre 202**, exista o no el contacto |
+| `POST` | `/api/auth/sesion` | Canjea el codigo y devuelve el perfil |
+| `PATCH` | `/api/profiles/:id/contacto` | Dejar o cambiar el contacto |
+
+El codigo se guarda con `pbkdf2` y sal propia, vence en 10 minutos, es de un
+solo uso y se quema a los 5 intentos. **No hay token, ni cookie, ni header de
+sesion**: al canjear se guarda `perfil.id` en la misma clave de siempre.
+
+El 202 constante es deliberado: responder 404 cuando el contacto no existe
+dejaria averiguar quien esta registrado probando correos, y la lista de quien
+busca trabajo es justo lo que no puede filtrarse.
+
+Detalle completo en [`docs/12-auth.md`](docs/12-auth.md).
 
 ## Pruebas
 
@@ -275,11 +299,12 @@ sola. Contrato en [`docs/12-auth.md`](docs/12-auth.md).
 npm test --prefix backend
 ```
 
-50 pruebas con `node:test`, sin framework: clasificacion de confianza, limite de
+64 pruebas con `node:test`, sin framework: clasificacion de confianza, limite de
 concurrencia, deduplicacion de convocatorias y de busquedas, extraccion de JSON
 de respuestas del modelo, plan del orquestador, redaccion de las notificaciones,
-y una bateria de integracion que levanta el servidor real y ejercita rutas,
-validacion, manejo de errores y streaming SSE.
+hash y verificacion del codigo de acceso, y una bateria de integracion que
+levanta el servidor real y ejercita rutas, validacion, manejo de errores y
+streaming SSE.
 
 ## Que es real y que es roadmap
 
@@ -287,13 +312,13 @@ validacion, manejo de errores y streaming SSE.
 `skills[]`, indice compartido con deduplicacion, scoring con justificacion y
 fallback heuristico cuando el modelo no responde, semaforo de confianza, las
 nueve vistas del frontend con modo claro y oscuro, progreso en vivo por SSE,
-corrida autonoma por cron, notificaciones por Zavu, telemetria, y los endpoints
-de inteligencia de oportunidades.
+corrida autonoma por cron, notificaciones por Zavu, acceso por codigo para
+recuperar el perfil desde otro dispositivo, telemetria, y los endpoints de
+inteligencia de oportunidades.
 
-**Roadmap**: acceso por codigo (frontend listo, backend pendiente), onboarding y
-resumen por voz, feedback loop persistente, matching inverso expuesto por API,
-portal para organizaciones, checklist y calendario persistidos en el servidor,
-mas de cinco fuentes.
+**Roadmap**: onboarding y resumen por voz, feedback loop persistente, matching
+inverso expuesto por API, portal para organizaciones, checklist y calendario
+persistidos en el servidor, mas de cinco fuentes.
 
 ## Despliegue
 

@@ -16,13 +16,15 @@ import { Icono } from './Icono.jsx';
  *
  * Nunca iconos solos: siempre icono + texto, en las dos variantes.
  */
-// `corto` es la etiqueta de la barra inferior: "Mis oportunidades" no entra en
-// un cuarto de 390px. Se acorta a lo que la persona fue a buscar ahi.
+// `corto` es la etiqueta de la barra inferior. En 320px cada destino tiene 80px
+// y "Oportunidades" no entra en una sola linea sin cortarse — es una palabra
+// sola, asi que no hay donde partirla. El nombre completo sigue estando para el
+// lector de pantalla.
 const DESTINOS = [
-  { a: '/oportunidades', icono: 'brujula', texto: 'Oportunidades' },
+  { a: '/oportunidades', icono: 'brujula', texto: 'Oportunidades', corto: 'Para ti' },
   { a: '/seguimiento', icono: 'marcador', texto: 'Mis oportunidades', corto: 'Guardadas' },
-  { a: '/calendario', icono: 'calendario', texto: 'Calendario' },
-  { a: '/perfil', icono: 'persona', texto: 'Mi perfil' }
+  { a: '/calendario', icono: 'calendario', texto: 'Calendario', corto: 'Fechas' },
+  { a: '/perfil', icono: 'persona', texto: 'Mi perfil', corto: 'Perfil' }
 ];
 
 /** Cuenta lo que cierra pronto. Un numero dice mas que un punto rojo. */

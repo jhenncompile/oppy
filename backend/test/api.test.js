@@ -166,3 +166,115 @@ test('un UUID bien formado pero inexistente sigue dando 404', async () => {
   const respuesta = await fetch(`${base}/api/profiles/00000000-0000-4000-8000-000000000000`);
   assert.equal(respuesta.status, 404);
 });
+
+// ---------------------------------------------------------------------------
+// Acceso por codigo. Contrato en docs/12-auth.md.
+// ---------------------------------------------------------------------------
+
+test('auth: /estado dice si el acceso se puede usar', async () => {
+  const respuesta = await fetch(`${base}/api/auth/estado`);
+  assert.equal(respuesta.status, 200);
+
+  const cuerpo = await respuesta.json();
+  assert.equal(typeof cuerpo.disponible, 'boolean');
+
+  // Sin canal de envio no hay codigo posible: `disponible` no puede decir que
+  // si mientras Zavu este apagado, o el frontend ofreceria algo que no termina.
+  if (!cuerpo.disponible) assert.equal(cuerpo.canal, null);
+});
+
+test('auth: pedir un codigo sin contacto devuelve 400, no 500', async () => {
+  const respuesta = await fetch(`${base}/api/auth/codigo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+  assert.equal(respuesta.status, 400);
+});
+
+test('auth: canjear con un codigo que no son 6 digitos devuelve 400', async () => {
+  for (const codigo of ['123', 'abcdef', '1234567', '']) {
+    const respuesta = await fetch(`${base}/api/auth/sesion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contacto: 'maria@correo.com', codigo })
+    });
+    assert.equal(respuesta.status, 400, `codigo "${codigo}" deberia dar 400`);
+  }
+});
+
+test('auth: cambiar contacto de un id que no es UUID devuelve 400', async () => {
+  const respuesta = await fetch(`${base}/api/profiles/no-es-uuid/contacto`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'maria@correo.com', aceptaNotificaciones: true })
+  });
+  assert.equal(respuesta.status, 400);
+});
+
+test('auth: aceptar avisos sin dejar contacto se rechaza', async () => {
+  // Aceptar que te avisen sin decir a donde es un estado imposible: la fila
+  // quedaria marcada como notificable y no habria destinatario.
+  const respuesta = await fetch(
+    `${base}/api/profiles/11111111-1111-4111-8111-111111111111/contacto`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aceptaNotificaciones: true })
+    }
+  );
+  assert.equal(respuesta.status, 400);
+});
+
+test('libreta: anotar sin userId se rechaza antes de tocar la base', async () => {
+  const respuesta = await fetch(`${base}/api/propias`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ titulo: 'Ayudante de cocina en el centro' })
+  });
+  assert.equal(respuesta.status, 400);
+});
+
+test('libreta: solo el titulo es obligatorio — falta y se rechaza', async () => {
+  // El resto es opcional a proposito: lo que llega por WhatsApp no tiene
+  // enlace, ni organizacion, ni fecha. Pero sin titulo no hay nada que anotar.
+  const respuesta = await fetch(`${base}/api/propias`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: '11111111-1111-4111-8111-111111111111', donde: 'un cartel' })
+  });
+  assert.equal(respuesta.status, 400);
+});
+
+test('libreta: un enlace que no es URL se rechaza', async () => {
+  const respuesta = await fetch(`${base}/api/propias`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: '11111111-1111-4111-8111-111111111111',
+      titulo: 'Ayudante de cocina',
+      enlace: 'no-es-una-url'
+    })
+  });
+  assert.equal(respuesta.status, 400);
+});
+
+test('libreta: pedirla sin decir de quien es devuelve 400', async () => {
+  const respuesta = await fetch(`${base}/api/propias`);
+  assert.equal(respuesta.status, 400);
+});
+
+test('libreta: un estado que no existe en el seguimiento se rechaza', async () => {
+  const respuesta = await fetch(
+    `${base}/api/propias/11111111-1111-4111-8111-111111111111`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: '11111111-1111-4111-8111-111111111111',
+        estado: 'inventado'
+      })
+    }
+  );
+  assert.equal(respuesta.status, 400);
+});

@@ -116,7 +116,7 @@ export function Selector({ nombre, etiqueta, ayuda, opciones, valor, onCambiar, 
           aria-describedby={ayuda ? `${nombre}-ayuda` : undefined}
           className="min-h-[44px] rounded-md border border-line-subtle bg-surface-subtle px-4 py-3 text-ink focus:border-line-accent focus:outline-none"
         >
-          <option value="">Elegi una opcion</option>
+          <option value="">Elige una opcion</option>
           {opciones.map((opcion) => (
             <option key={opcion} value={opcion}>
               {opcion}

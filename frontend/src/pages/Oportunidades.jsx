@@ -120,7 +120,7 @@ export function Oportunidades() {
   return (
     <Panel>
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <PanelTitulo sobretitulo="Para vos">
+        <PanelTitulo sobretitulo="Para ti">
           {cargando
             ? 'Buscando lo tuyo…'
             : matches.length === 0
@@ -175,7 +175,7 @@ export function Oportunidades() {
           {!mostrarTodas && visibles.length > TOP && (
             <p className="mb-4 flex items-center gap-1.5 text-sm font-medium text-ink">
               <Icono nombre="chispas" tamanio={15} className="text-ink-accent" />
-              Lo mejor para vos
+              Lo mejor para ti
             </p>
           )}
 

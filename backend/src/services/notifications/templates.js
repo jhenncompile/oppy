@@ -71,3 +71,108 @@ export function mensajeDeOportunidad({ perfil, match, hoy = new Date() }) {
 
   return lineas.join('\n');
 }
+
+/**
+ * Recordatorio de una oportunidad que la persona anoto ella misma.
+ *
+ * Es el reverso del mensaje de arriba y por eso esta escrito al reves: aquel
+ * dice "encontre algo", este dice "vos anotaste algo". Oppy no esta
+ * recomendando nada aca — esta cumpliendo un encargo, y el texto tiene que
+ * dejarlo claro, porque es lo unico que separa un recordatorio util de un
+ * mensaje no pedido.
+ *
+ * Nunca se manda sobre algo que Oppy no verifico y que la persona no eligio:
+ * los avisos sobre convocatorias sin verificar son la forma exacta de una
+ * estafa laboral, y quien usa Oppy es la mas expuesta a eso.
+ *
+ * @param {object} opciones
+ * @param {object} opciones.persona   Nombre de quien la anoto
+ * @param {object} opciones.propia    La oportunidad de la libreta
+ * @param {Date}   [opciones.hoy]     Inyectable para poder probar el plazo
+ * @returns {string}
+ */
+export function mensajeDeRecordatorio({ persona, propia, hoy = new Date() }) {
+  const saludo = persona?.nombre ? `Hola ${persona.nombre}` : 'Hola';
+  const plazo = textoPlazo(propia.fechaLimite, hoy);
+
+  const lineas = [
+    `${saludo}, soy Oppy. Te recuerdo algo que anotaste vos:`,
+    '',
+    propia.titulo
+  ];
+
+  if (propia.organizacion) lineas.push(propia.organizacion);
+  if (plazo) lineas.push(`${plazo}.`);
+  if (propia.donde) lineas.push(`La anotaste asi: ${propia.donde}.`);
+  if (propia.enlace) lineas.push('', propia.enlace);
+
+  return lineas.join('\n');
+}
+
+/**
+ * Recordatorio de una oportunidad que Oppy encontro y la persona guardo.
+ *
+ * Hermano del de arriba y escrito distinto a proposito. Aca Oppy SI reviso la
+ * fuente, asi que puede nombrarla — y nombrarla es lo que hace que el mensaje
+ * se pueda comprobar. En el de la libreta no puede, y no lo finge.
+ *
+ * Los dos empiezan igual en lo que importa: recordando algo que la persona
+ * eligio. Ninguno de los dos es una recomendacion nueva; para eso esta
+ * `mensajeDeOportunidad`.
+ *
+ * @param {object} opciones
+ * @param {object} opciones.persona   Nombre de quien la guardo
+ * @param {object} opciones.match     Match con su oportunidad
+ * @param {Date}   [opciones.hoy]     Inyectable para poder probar el plazo
+ * @returns {string}
+ */
+export function mensajeDeCierreGuardada({ persona, match, hoy = new Date() }) {
+  const { oportunidad } = match;
+  const saludo = persona?.nombre ? `Hola ${persona.nombre}` : 'Hola';
+  const plazo = textoPlazo(oportunidad.fechaLimite, hoy);
+
+  const lineas = [
+    `${saludo}, soy Oppy. Te recuerdo la que guardaste:`,
+    '',
+    oportunidad.titulo
+  ];
+
+  if (oportunidad.fuente?.nombre) lineas.push(oportunidad.fuente.nombre);
+  if (plazo) lineas.push(`${plazo}.`);
+
+  const enlace = oportunidad.linkAplicacion ?? oportunidad.fuente?.url;
+  if (enlace) lineas.push('', enlace);
+
+  return lineas.join('\n');
+}
+
+/**
+ * Mensaje con el codigo para volver a entrar. Contrato en docs/12-auth.md.
+ *
+ * Dice de entrada que alguien lo pidio y que se puede ignorar. Este mensaje le
+ * llega a la persona sin que lo espere si alguien escribio mal su correo, y en
+ * ese caso lo unico que necesita saber es que no tiene que hacer nada.
+ *
+ * No lleva enlace a proposito: un mensaje inesperado con un enlace para
+ * apretar es exactamente la forma de una estafa, y la gente a la que Oppy
+ * quiere llegar es la mas expuesta a eso. El codigo se escribe a mano en una
+ * pantalla que la persona ya tiene abierta.
+ *
+ * @param {object} opciones
+ * @param {object} opciones.perfil    Perfil de la persona
+ * @param {string} opciones.codigo    Los 6 digitos
+ * @param {number} opciones.minutos   Vigencia
+ * @returns {string}
+ */
+export function mensajeDeAcceso({ perfil, codigo, minutos }) {
+  const saludo = perfil?.nombre ? `Hola ${perfil.nombre}` : 'Hola';
+
+  return [
+    `${saludo}, soy Oppy. Alguien pidio volver a entrar a tu perfil.`,
+    '',
+    `Tu codigo es ${codigo}`,
+    `Vence en ${minutos} minutos.`,
+    '',
+    'Si no lo pediste vos, no hagas nada: sin el codigo nadie entra.'
+  ].join('\n');
+}

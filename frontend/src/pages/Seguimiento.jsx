@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Panel, PanelTitulo } from '../components/Panel.jsx';
 import { Button } from '../components/Button.jsx';
 import { OpportunityCard } from '../components/OpportunityCard.jsx';
+import { PropiaCard } from '../components/PropiaCard.jsx';
+import { FormularioPropia } from '../components/FormularioPropia.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
-import { useMatchesCompartidos } from '../Layout.jsx';
-import { diasRestantes, CIERRA_PRONTO_DIAS, enSeguimiento } from '../hooks/useMatches.js';
+import { useMatchesCompartidos, usePropiasCompartidas } from '../Layout.jsx';
+import { CIERRA_PRONTO_DIAS, enSeguimiento } from '../hooks/useMatches.js';
+import { filasConFecha } from '../hooks/usePropias.js';
 import { Icono } from '../components/Icono.jsx';
 
 /**
@@ -15,6 +19,11 @@ import { Icono } from '../components/Icono.jsx';
  *
  * Cada grupo tiene su icono para que la etapa se reconozca al bajar rapido por
  * la pagina, sin leer los cinco titulos.
+ *
+ * Conviven dos fuentes en los mismos grupos: lo que encontro el agente y lo que
+ * la persona anoto por su cuenta. Mezcladas y no en dos listas separadas,
+ * porque para quien esta buscando la pregunta es "en que ando", no "quien lo
+ * encontro". Cada tarjeta si dice de donde vino.
  */
 const GRUPOS = [
   {
@@ -49,12 +58,12 @@ const GRUPOS = [
   }
 ];
 
+const textoPlazo = (dias) =>
+  dias === 0 ? 'Cierra hoy' : dias === 1 ? 'Cierra en 1 dia' : `Cierra en ${dias} dias`;
+
 /** Lo que cierra pronto va arriba de todo: es lo unico que tiene reloj. */
-function Recordatorios({ matches }) {
-  const urgentes = matches
-    .map((match) => ({ match, dias: diasRestantes(match.oportunidad.fechaLimite) }))
-    .filter(({ dias }) => dias !== null && dias >= 0 && dias <= CIERRA_PRONTO_DIAS)
-    .sort((a, b) => a.dias - b.dias);
+function Recordatorios({ filas }) {
+  const urgentes = filas.filter((fila) => fila.dias <= CIERRA_PRONTO_DIAS);
 
   if (urgentes.length === 0) return null;
 
@@ -65,15 +74,24 @@ function Recordatorios({ matches }) {
         {urgentes.length === 1 ? 'Una cierra pronto' : `${urgentes.length} cierran pronto`}
       </p>
       <ul className="mt-3 flex flex-col gap-2">
-        {urgentes.map(({ match, dias }) => (
-          <li key={match.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span className="text-ink">{match.oportunidad.titulo}</span>
-            <Link
-              to={`/oportunidad/${match.id}`}
-              className="min-h-[44px] text-sm font-medium text-ink-accent underline underline-offset-2"
-            >
-              {dias === 0 ? 'Cierra hoy' : dias === 1 ? 'Cierra maniana' : `Cierra en ${dias} dias`}
-            </Link>
+        {urgentes.map((fila) => (
+          <li key={fila.clave} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-ink">{fila.titulo}</span>
+
+            {/* La anotada a mano no tiene detalle adentro de Oppy: no hay nada
+                que Oppy pueda contar sobre ella que la persona no sepa ya. */}
+            {fila.rutaDetalle ? (
+              <Link
+                to={fila.rutaDetalle}
+                className="min-h-[44px] text-sm font-medium text-ink-accent underline underline-offset-2"
+              >
+                {textoPlazo(fila.dias)}
+              </Link>
+            ) : (
+              <span className="text-sm font-medium text-trust-pending-text">
+                {textoPlazo(fila.dias)}
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -84,46 +102,74 @@ function Recordatorios({ matches }) {
 export function Seguimiento() {
   const { perfil } = usePerfil();
   const { matches, cambiarEstado } = useMatchesCompartidos();
+  const {
+    propias,
+    agregar,
+    cambiarEstado: cambiarEstadoPropia,
+    eliminar: eliminarPropia
+  } = usePropiasCompartidas();
+  const [anotando, setAnotando] = useState(false);
   const navegar = useNavigate();
 
   if (!perfil) return <Navigate to="/" replace />;
 
   const seguidas = matches.filter(enSeguimiento);
+  const vacio = seguidas.length === 0 && propias.length === 0;
 
   return (
     <Panel>
-      <div className="mb-8">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <PanelTitulo sobretitulo="Seguimiento">Mis oportunidades</PanelTitulo>
+
+        {!anotando && !vacio && (
+          <Button variante="secundario" onClick={() => setAnotando(true)}>
+            <Icono nombre="marcador" tamanio={16} />
+            Anotar una que encontraste
+          </Button>
+        )}
       </div>
 
-      {seguidas.length === 0 ? (
+      {anotando && (
+        <FormularioPropia onGuardar={agregar} onCancelar={() => setAnotando(false)} />
+      )}
+
+      {vacio && !anotando ? (
         <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-6 text-center">
           <Icono nombre="marcador" tamanio={40} className="text-ink-secondary" />
           <p className="text-lg font-medium text-ink">Todavia no guardaste ninguna.</p>
           <p className="text-sm text-ink-secondary">
             Cuando encuentres algo que te interese, guardalo y aca vas a poder
-            seguirle el rastro hasta que se cierre.
+            seguirle el rastro hasta que se cierre. Tambien puedes anotar las que
+            encuentres por tu cuenta, aunque Oppy no las haya visto nunca.
           </p>
-          <Button variante="primario" onClick={() => navegar('/oportunidades')}>
-            <Icono nombre="brujula" tamanio={16} />
-            Ver oportunidades
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button variante="primario" onClick={() => navegar('/oportunidades')}>
+              <Icono nombre="brujula" tamanio={16} />
+              Ver oportunidades
+            </Button>
+            <Button variante="secundario" onClick={() => setAnotando(true)}>
+              <Icono nombre="marcador" tamanio={16} />
+              Anotar una
+            </Button>
+          </div>
         </div>
       ) : (
         <>
-          <Recordatorios matches={seguidas} />
+          <Recordatorios filas={filasConFecha({ matches, propias })} />
 
           <div className="flex flex-col gap-10">
             {GRUPOS.map((grupo) => {
               const delGrupo = seguidas.filter((m) => m.estado === grupo.estado);
-              if (delGrupo.length === 0) return null;
+              const propiasDelGrupo = propias.filter((p) => p.estado === grupo.estado);
+              const total = delGrupo.length + propiasDelGrupo.length;
+              if (total === 0) return null;
 
               return (
                 <section key={grupo.estado}>
                   <h3 className="flex items-center gap-2 text-base font-semibold text-ink">
                     <Icono nombre={grupo.icono} tamanio={17} className="text-ink-accent" />
                     {grupo.titulo}{' '}
-                    <span className="font-normal text-ink-secondary">({delGrupo.length})</span>
+                    <span className="font-normal text-ink-secondary">({total})</span>
                   </h3>
                   <p className="mt-1 text-sm text-ink-secondary">{grupo.ayuda}</p>
 
@@ -134,7 +180,15 @@ export function Seguimiento() {
                         match={match}
                         onGuardar={(m) => cambiarEstado(m, 'visto')}
                         onSeguimiento={cambiarEstado}
+                      />
+                    ))}
 
+                    {propiasDelGrupo.map((propia) => (
+                      <PropiaCard
+                        key={propia.id}
+                        propia={propia}
+                        onCambiarEstado={cambiarEstadoPropia}
+                        onEliminar={eliminarPropia}
                       />
                     ))}
                   </div>
