@@ -1,16 +1,22 @@
 import { buscar } from './exaClient.js';
 import { extraer } from './firecrawlClient.js';
 import { ESTRATEGIAS, fuentesPorEstrategia } from './sources.js';
+import { mapExitosos } from '../../utils/concurrency.js';
+import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ module: 'discovery' });
 
+/** Sin tope, 8–12 fetches Exa a la vez suelen terminar en `fetch failed`. */
+const CONCURRENCIA_EXA = 2;
+const CONCURRENCIA_SCRAPE = 2;
+
 /**
- * Recolecta documentos crudos de todas las fuentes, en paralelo.
+ * Recolecta documentos crudos de todas las fuentes, con concurrencia limitada.
  *
- * Se usa allSettled a proposito: una fuente que falla no puede tumbar la
- * corrida. La degradacion tiene que ser parcial — en una demo en vivo, que
- * tres de cinco fuentes respondan es un exito, no un error.
+ * Se usa allSettled/mapExitosos a proposito: una fuente que falla no puede
+ * tumbar la corrida. La degradacion tiene que ser parcial — en una demo en
+ * vivo, que tres de cinco fuentes respondan es un exito, no un error.
  *
  * @param {object} plan             Plan del orquestador
  * @param {string[]} plan.queries   Busquedas semanticas generadas para el perfil
@@ -20,59 +26,38 @@ const log = logger.child({ module: 'discovery' });
 export async function descubrir({ queries, categorias }, onPaso = () => {}) {
   const paraScrapear = fuentesPorEstrategia(ESTRATEGIAS.SCRAPE, { categorias });
   const paraBuscar = fuentesPorEstrategia(ESTRATEGIAS.BUSQUEDA, { categorias });
+  // Menos queries × menos resultados = menos paginas a normalizar (el cuello
+  // de botella es Ollama, no Exa).
+  const queriesEfectivas = queries.slice(0, 2);
+  const busquedas = [...combinacionesDeBusqueda(paraBuscar, queriesEfectivas).values()];
+  const resultadosPorQuery = Math.min(env.EXA_RESULTS_PER_QUERY, 4);
 
-  const tareas = [];
+  const scrapes = await mapExitosos(paraScrapear, CONCURRENCIA_SCRAPE, async (fuente) => {
+    onPaso({ tipo: 'fuente_inicio', fuente: fuente.nombre });
+    const documento = await extraer(fuente.url);
+    onPaso({
+      tipo: 'fuente_fin',
+      fuente: fuente.nombre,
+      exito: Boolean(documento)
+    });
+    return documento ? [{ ...documento, fuente }] : [];
+  });
 
-  for (const fuente of paraScrapear) {
-    tareas.push(
-      (async () => {
-        onPaso({ tipo: 'fuente_inicio', fuente: fuente.nombre });
-        const documento = await extraer(fuente.url);
-        onPaso({
-          tipo: 'fuente_fin',
-          fuente: fuente.nombre,
-          exito: Boolean(documento)
-        });
-        return documento ? [{ ...documento, fuente }] : [];
-      })()
-    );
-  }
+  const resultadosBusqueda = await mapExitosos(busquedas, CONCURRENCIA_EXA, async (busqueda) => {
+    const { query, dominios, fuente } = busqueda;
+    onPaso({ tipo: 'busqueda_inicio', query });
+    const resultados = await buscar(query, { dominios, resultados: resultadosPorQuery });
+    onPaso({ tipo: 'busqueda_fin', query, encontrados: resultados.length });
+    return resultados.map((documento) => ({ ...documento, fuente }));
+  });
 
-  // Varias fuentes de busqueda pueden compartir el mismo alcance de dominios.
-  // Sin deduplicar, la misma query se pagaria una vez por fuente coincidente:
-  // con 3 queries y 3 fuentes serian 9 llamadas para 3 busquedas distintas.
-  for (const [, busqueda] of combinacionesDeBusqueda(paraBuscar, queries)) {
-    tareas.push(
-      (async () => {
-        const { query, dominios, fuente } = busqueda;
-        onPaso({ tipo: 'busqueda_inicio', query });
-        const resultados = await buscar(query, { dominios });
-        onPaso({ tipo: 'busqueda_fin', query, encontrados: resultados.length });
-        return resultados.map((documento) => ({ ...documento, fuente }));
-      })()
-    );
-  }
-
-  const resultados = await Promise.allSettled(tareas);
-
-  const documentos = [];
-  let fallidas = 0;
-
-  for (const resultado of resultados) {
-    if (resultado.status === 'fulfilled') documentos.push(...resultado.value);
-    else fallidas += 1;
-  }
-
-  if (fallidas > 0) {
-    log.warn('Algunas fuentes fallaron', { fallidas, total: tareas.length });
-  }
-
+  const documentos = [...scrapes.flat(), ...resultadosBusqueda.flat()];
   const unicos = deduplicarPorUrl(documentos);
 
   log.info('Descubrimiento completado', {
     documentos: unicos.length,
-    tareas: tareas.length,
-    fallidas
+    scrapes: paraScrapear.length,
+    busquedas: busquedas.length
   });
 
   return unicos;

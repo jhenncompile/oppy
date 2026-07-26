@@ -14,7 +14,7 @@ export default function App() {
   const [perfil, setPerfil] = useState(null);
   const [matches, setMatches] = useState([]);
   const [error, setError] = useState(null);
-  const { estado, pasos, iniciar } = useAgentRun();
+  const { estado, pasos, error: errorAgente, iniciar } = useAgentRun();
 
   /**
    * Los resultados se van persistiendo mientras el agente razona, asi que se
@@ -112,9 +112,9 @@ export default function App() {
             </div>
           )}
 
-          {error && (
+          {(error || errorAgente) && (
             <p className="mt-6 text-sm text-trust-stale-text" role="alert">
-              {error}
+              {error || errorAgente}
             </p>
           )}
         </Panel>

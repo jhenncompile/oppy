@@ -1,4 +1,6 @@
-const BASE = import.meta.env.VITE_API_URL ?? '/api';
+// En dev, sin VITE_API_URL (o vacio), usamos /api para que Vite haga proxy.
+// Ojo: `??` no trata "" como ausente — por eso el `||`.
+const BASE = import.meta.env.VITE_API_URL || '/api';
 
 async function pedir(ruta, opciones = {}) {
   const respuesta = await fetch(`${BASE}${ruta}`, {

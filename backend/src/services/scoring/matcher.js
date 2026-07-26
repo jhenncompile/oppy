@@ -1,5 +1,8 @@
 import { z } from 'zod';
+import { env } from '../../config/env.js';
 import { completeJson } from '../llm/index.js';
+import * as oppyClient from '../llm/oppyClient.js';
+import { perfilAOppy, oportunidadAOppy, matchingAEvaluacion } from '../llm/oppyAdapter.js';
 import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ module: 'matcher' });
@@ -50,12 +53,48 @@ Responde solo con JSON.`;
  * @param {'persona'|'organizacion'} perspectiva  A quien se le habla
  */
 export async function evaluar(perfil, oportunidad, { perspectiva = 'persona' } = {}) {
+  // Preferimos el LoRA entrenado cuando hay URL; si falla, Ollama mantiene la corrida.
+  if (env.features.oppy && perspectiva === 'persona') {
+    const desdeOppy = await evaluarConOppy(perfil, oportunidad);
+    if (desdeOppy) return desdeOppy;
+  }
+
+  return evaluarConOllama(perfil, oportunidad, perspectiva);
+}
+
+async function evaluarConOppy(perfil, oportunidad) {
+  const data = await oppyClient.match(
+    perfilAOppy(perfil),
+    oportunidadAOppy(oportunidad)
+  );
+  const evaluacion = matchingAEvaluacion(data);
+  if (!evaluacion) return null;
+
+  const validada = evaluacionSchema.safeParse(evaluacion);
+  if (!validada.success) {
+    log.warn('Matching Oppy no paso el schema', { error: validada.error.message });
+    return null;
+  }
+
+  return {
+    compatibilidad: validada.data.compatibilidad,
+    elegible: validada.data.elegible,
+    razones: validada.data.razones.map((razon) => razon.trim()),
+    brechas: validada.data.brechas.map((brecha) => brecha.trim())
+  };
+}
+
+async function evaluarConOllama(perfil, oportunidad, perspectiva) {
   const prompt = [
     'PERFIL DE LA PERSONA',
+    `Objetivo: ${perfil.objetivo ?? 'sin especificar'}`,
     `Carrera: ${perfil.carrera}`,
     `Nivel de estudios: ${perfil.nivelEstudios}`,
     `Ubicacion: ${perfil.ubicacion}`,
+    `Experiencia: ${(perfil.experiencia ?? []).join(', ') || 'sin especificar'}`,
+    `Habilidades: ${(perfil.habilidades ?? []).join(', ') || 'sin especificar'}`,
     `Intereses: ${(perfil.intereses ?? []).join(', ') || 'sin especificar'}`,
+    `Restricciones: ${(perfil.restricciones ?? []).join(', ') || 'ninguna'}`,
     `Idiomas: ${formatearIdiomas(perfil.idiomas)}`,
     '',
     'OPORTUNIDAD',

@@ -160,7 +160,10 @@ export function Onboarding({ onEnviar, enviando }) {
   };
 
   const completo =
-    valores.carrera.trim() && valores.nivelEstudios.trim() && valores.ubicacion.trim();
+    objetivo[0] &&
+    valores.carrera.trim() &&
+    valores.nivelEstudios.trim() &&
+    valores.ubicacion.trim();
 
   // El opt-in no sirve de nada sin un contacto donde avisar.
   const puedeAvisar = Boolean(valores.email.trim() || valores.telefono.trim());

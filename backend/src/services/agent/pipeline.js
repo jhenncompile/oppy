@@ -8,13 +8,13 @@ import * as matchRepository from '../../repositories/matchRepository.js';
 import * as agentRunRepository from '../../repositories/agentRunRepository.js';
 import { planificar } from './orchestrator.js';
 import { normalizar } from './normalizer.js';
-import { oportunidadesDemo, evaluarDemo } from './demo.js';
+import { oportunidadesDemo } from './demo.js';
 import * as runTracker from './runTracker.js';
 
 const log = logger.child({ module: 'pipeline' });
 
-const CONCURRENCIA_NORMALIZACION = 4;
-const CONCURRENCIA_SCORING = 4;
+const CONCURRENCIA_NORMALIZACION = 2;
+const CONCURRENCIA_SCORING = 2;
 
 /**
  * Registra la corrida y arranca el trabajo, devolviendo el runId de inmediato.
@@ -54,7 +54,7 @@ async function correr({ perfil, corrida, disparador }) {
   try {
     paso({
       tipo: 'perfil',
-      mensaje: `Entendi tu perfil: ${perfil.carrera}, ${perfil.nivelEstudios}, ${perfil.ubicacion}`
+      mensaje: resumenPerfil(perfil)
     });
 
     // 1. Decidir que buscar — esto es lo que lo hace un agente y no un buscador
@@ -70,20 +70,18 @@ async function correr({ perfil, corrida, disparador }) {
     // 2 y 3. Conseguir oportunidades: rastreando el mundo real, o del catalogo
     // de demo cuando no hay claves de scraping ni modelo servido.
     const oportunidades = env.demoMode
-      ? deCatalogoDemo(paso)
+      ? deCatalogoDemo(paso, plan.categorias)
       : await descubrirYNormalizar(plan, paso);
 
     // 4. Alimentar el indice compartido
     const nuevas = await guardarEnIndice(oportunidades);
     paso({ tipo: 'indice', mensaje: `${nuevas} nuevas para el indice`, nuevas });
 
-    // 5. Razonar sobre compatibilidad
+    // 5. Razonar sobre compatibilidad.
+    // En demo solo se salta el scraping: el scoring sigue yendo a Ollama para
+    // que el camino local sin LoRA remoto sea el mismo que produccion.
     paso({ tipo: 'scoring_inicio', mensaje: 'Evaluando cuales son para vos' });
-    const matches = await puntuarParaPerfil(
-      perfil,
-      plan.categorias,
-      env.demoMode ? evaluarDemo : evaluarSeguro
-    );
+    const matches = await puntuarParaPerfil(perfil, plan.categorias, evaluarSeguro);
     paso({
       tipo: 'scoring_fin',
       mensaje: `${matches.length} oportunidades compatibles`,
@@ -121,17 +119,47 @@ async function correr({ perfil, corrida, disparador }) {
 async function descubrirYNormalizar(plan, paso) {
   paso({ tipo: 'descubrimiento_inicio', mensaje: 'Rastreando fuentes' });
   const documentos = await descubrir(plan, paso);
+  const tope = env.MAX_NORMALIZE_PER_RUN;
+  const aProcesar = documentos.slice(0, tope);
+
+  if (documentos.length > tope) {
+    paso({
+      tipo: 'descubrimiento_fin',
+      mensaje: `${documentos.length} paginas recuperadas — proceso las ${tope} mas relevantes`,
+      total: documentos.length
+    });
+  } else {
+    paso({
+      tipo: 'descubrimiento_fin',
+      mensaje: `${documentos.length} paginas recuperadas`,
+      total: documentos.length
+    });
+  }
+
+  const totalDocs = aProcesar.length;
   paso({
-    tipo: 'descubrimiento_fin',
-    mensaje: `${documentos.length} paginas recuperadas`,
-    total: documentos.length
+    tipo: 'normalizacion_inicio',
+    mensaje: totalDocs > 0
+      ? `Leyendo y estructurando ${totalDocs} pagina${totalDocs === 1 ? '' : 's'}`
+      : 'Sin paginas para estructurar'
   });
 
-  paso({ tipo: 'normalizacion_inicio', mensaje: 'Leyendo y estructurando convocatorias' });
   const lotes = await mapExitosos(
-    documentos,
+    aProcesar,
     CONCURRENCIA_NORMALIZACION,
-    (documento) => normalizar(documento)
+    async (documento, indice) => {
+      const lote = await normalizar(documento, {
+        categorias: plan.categorias,
+        timeoutMs: env.NORMALIZE_TIMEOUT_MS
+      });
+      paso({
+        tipo: 'normalizacion_progreso',
+        mensaje: `Pagina ${indice + 1} de ${totalDocs}`,
+        procesados: indice + 1,
+        total: totalDocs
+      });
+      return lote;
+    }
   );
   const oportunidades = lotes.flat();
   paso({
@@ -148,9 +176,12 @@ async function descubrirYNormalizar(plan, paso) {
  * vivo se ve igual — pero deja dicho que son datos de ejemplo: una demo que se
  * confunde con la real es peor que no tener demo.
  */
-function deCatalogoDemo(paso) {
+function deCatalogoDemo(paso, categorias) {
   paso({ tipo: 'descubrimiento_inicio', mensaje: 'Modo demo: catalogo de ejemplo, sin rastreo' });
-  const oportunidades = oportunidadesDemo();
+  const todas = oportunidadesDemo();
+  const oportunidades = categorias?.length
+    ? todas.filter((o) => categorias.includes(o.categoria))
+    : todas;
   paso({
     tipo: 'descubrimiento_fin',
     mensaje: `${oportunidades.length} convocatorias de ejemplo`,
@@ -163,6 +194,23 @@ function deCatalogoDemo(paso) {
   });
 
   return oportunidades;
+}
+
+function resumenPerfil(perfil) {
+  const partes = [
+    perfil.objetivo ? `objetivo ${perfil.objetivo}` : null,
+    perfil.carrera,
+    perfil.nivelEstudios,
+    perfil.ubicacion
+  ].filter(Boolean);
+
+  const extras = [];
+  if (perfil.habilidades?.length) extras.push(`skills: ${perfil.habilidades.slice(0, 3).join(', ')}`);
+  if (perfil.restricciones?.length) extras.push(perfil.restricciones.slice(0, 2).join(', '));
+
+  return extras.length
+    ? `Entendi tu perfil: ${partes.join(' · ')} (${extras.join(' · ')})`
+    : `Entendi tu perfil: ${partes.join(' · ')}`;
 }
 
 async function guardarEnIndice(oportunidades) {

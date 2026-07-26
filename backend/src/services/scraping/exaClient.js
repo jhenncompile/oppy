@@ -1,5 +1,6 @@
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
+import { fetchConReintentos, motivoFetch } from '../../utils/fetchConReintentos.js';
 
 const log = logger.child({ module: 'exa' });
 const ENDPOINT = 'https://api.exa.ai/search';
@@ -18,21 +19,25 @@ export async function buscar(query, { dominios = null, resultados = env.EXA_RESU
   }
 
   try {
-    const response = await fetch(ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': env.EXA_API_KEY
+    const response = await fetchConReintentos(
+      ENDPOINT,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': env.EXA_API_KEY
+        },
+        body: JSON.stringify({
+          query,
+          numResults: resultados,
+          type: 'auto',
+          includeDomains: dominios ?? undefined,
+          contents: { text: { maxCharacters: 4000 } }
+        }),
+        signal: AbortSignal.timeout(30_000)
       },
-      body: JSON.stringify({
-        query,
-        numResults: resultados,
-        type: 'auto',
-        includeDomains: dominios ?? undefined,
-        contents: { text: { maxCharacters: 4000 } }
-      }),
-      signal: AbortSignal.timeout(30_000)
-    });
+      { intentos: 3, esperaMs: 700 }
+    );
 
     if (!response.ok) {
       log.warn('Exa respondio con error', { status: response.status, query });
@@ -51,7 +56,7 @@ export async function buscar(query, { dominios = null, resultados = env.EXA_RESU
         origenBusqueda: query
       }));
   } catch (error) {
-    log.warn('Busqueda semantica fallida', { query, error: error.message });
+    log.warn('Busqueda semantica fallida', { query, error: motivoFetch(error) });
     return [];
   }
 }
