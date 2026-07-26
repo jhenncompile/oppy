@@ -5,6 +5,7 @@ import { TrustBadge } from '../components/TrustBadge.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
 import { useMatchesCompartidos } from '../Layout.jsx';
 import { diasRestantes, enSeguimiento } from '../hooks/useMatches.js';
+import { Icono } from '../components/Icono.jsx';
 
 /**
  * Proximos cierres.
@@ -39,6 +40,15 @@ function agrupar(matches) {
 
 const ORDEN = ['Hoy', 'Maniana', 'Esta semana', 'Mas adelante'];
 
+// Lo que vence hoy lleva triangulo y no reloj: es la unica fila donde ya no
+// queda margen para postergarlo.
+const ICONOS = {
+  Hoy: 'alerta',
+  Maniana: 'reloj',
+  'Esta semana': 'calendario',
+  'Mas adelante': 'calendario'
+};
+
 export function Calendario() {
   const { perfil } = usePerfil();
   const { matches } = useMatchesCompartidos();
@@ -58,12 +68,14 @@ export function Calendario() {
 
       {total === 0 ? (
         <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-6 text-center">
+          <Icono nombre="calendario" tamanio={40} className="text-ink-secondary" />
           <p className="text-lg font-medium text-ink">No tenes fechas por delante.</p>
           <p className="text-sm text-ink-secondary">
             Aca aparecen los cierres de las oportunidades que vayas guardando,
             ordenados por lo que se viene primero.
           </p>
           <Button variante="primario" onClick={() => navegar('/oportunidades')}>
+            <Icono nombre="brujula" tamanio={16} />
             Ver oportunidades
           </Button>
         </div>
@@ -71,7 +83,14 @@ export function Calendario() {
         <div className="flex flex-col gap-8">
           {ORDEN.filter((clave) => grupos.has(clave)).map((clave) => (
             <section key={clave}>
-              <h3 className="text-base font-semibold text-ink">{clave}</h3>
+              <h3 className="flex items-center gap-2 text-base font-semibold text-ink">
+                <Icono
+                  nombre={ICONOS[clave]}
+                  tamanio={17}
+                  className={clave === 'Hoy' ? 'text-trust-stale-text' : 'text-ink-accent'}
+                />
+                {clave}
+              </h3>
 
               <ul className="mt-3 flex flex-col gap-2">
                 {grupos.get(clave).map(({ match, dias }) => (
@@ -81,7 +100,8 @@ export function Calendario() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-ink">{match.oportunidad.titulo}</p>
-                      <p className="mt-1 text-xs text-ink-secondary">
+                      <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-secondary">
+                        <Icono nombre="calendario" tamanio={13} />
                         {FORMATO.format(new Date(match.oportunidad.fechaLimite))} ·{' '}
                         {match.oportunidad.fuente.nombre}
                       </p>

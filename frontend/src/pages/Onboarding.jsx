@@ -5,6 +5,7 @@ import { Button } from '../components/Button.jsx';
 import { Campo, Opciones, Selector } from '../components/Campos.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
 import { api } from '../api/client.js';
+import { Icono } from '../components/Icono.jsx';
 
 const MAX_OBJETIVOS = 3;
 const BORRADOR = 'oppy.borrador';
@@ -323,9 +324,12 @@ export function Onboarding() {
               seleccion={v.experiencia}
               onCambiar={set('experiencia')}
             />
-            <p className="rounded-md bg-surface-accent p-4 text-sm text-ink-secondary">
-              Cuidar una casa o una familia <strong className="text-ink">es</strong> experiencia.
-              Aca cuenta igual que un trabajo formal.
+            <p className="flex items-start gap-2 rounded-md bg-surface-accent p-4 text-sm text-ink-secondary">
+              <Icono nombre="corazon" tamanio={16} className="mt-0.5 text-ink-accent" />
+              <span>
+                Cuidar una casa o una familia <strong className="text-ink">es</strong> experiencia.
+                Aca cuenta igual que un trabajo formal.
+              </span>
             </p>
           </Pregunta>
         )}
@@ -395,7 +399,10 @@ export function Onboarding() {
 
             <div className="flex flex-col gap-4 rounded-lg border border-line-subtle p-4">
               <div>
-                <p className="text-base font-medium text-ink">Queres que te avise?</p>
+                <p className="flex items-center gap-2 text-base font-medium text-ink">
+                  <Icono nombre="campana" tamanio={17} className="text-ink-accent" />
+                  Queres que te avise?
+                </p>
                 <p className="mt-1 text-sm text-ink-secondary">
                   Sigo buscando aunque no entres. Si dejas un contacto, te escribo
                   solo cuando encuentro algo que de verdad calza con vos.
@@ -443,8 +450,9 @@ export function Onboarding() {
             </div>
 
             {error && (
-              <p className="text-sm text-trust-stale-text" role="alert">
-                {error}
+              <p className="flex items-start gap-2 text-sm text-trust-stale-text" role="alert">
+                <Icono nombre="alerta" tamanio={16} className="mt-0.5" />
+                <span>{error}</span>
               </p>
             )}
           </Pregunta>
@@ -456,6 +464,7 @@ export function Onboarding() {
             onClick={() => setPaso((p) => p - 1)}
             disabled={paso === 1 || enviando}
           >
+            <Icono nombre="flecha-izquierda" tamanio={15} />
             Atras
           </Button>
 
@@ -467,9 +476,11 @@ export function Onboarding() {
               disabled={!puedeSeguir}
             >
               Seguir
+              <Icono nombre="flecha-derecha" tamanio={17} />
             </Button>
           ) : (
             <Button variante="primario" tamano="lg" onClick={enviar} disabled={enviando}>
+              <Icono nombre="lupa" tamanio={17} />
               {enviando ? 'Empezando…' : 'Buscar oportunidades para mi'}
             </Button>
           )}

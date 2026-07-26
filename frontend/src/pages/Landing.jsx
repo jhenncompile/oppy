@@ -3,6 +3,7 @@ import { Panel, PanelTitulo } from '../components/Panel.jsx';
 import { Button } from '../components/Button.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
 import { useAcceso } from '../hooks/useAcceso.jsx';
+import { Icono } from '../components/Icono.jsx';
 
 /**
  * Los canales que todavia no existen se muestran igual, deshabilitados.
@@ -11,9 +12,9 @@ import { useAcceso } from '../hooks/useAcceso.jsx';
  * hasta que este lista es decirle a quien la necesita que no fue pensada.
  */
 const CANALES = [
-  { icono: '✆', texto: 'WhatsApp' },
-  { icono: '✈', texto: 'Telegram' },
-  { icono: '🎙', texto: 'Contame hablando' }
+  { icono: 'mensaje', texto: 'WhatsApp' },
+  { icono: 'enviar', texto: 'Telegram' },
+  { icono: 'microfono', texto: 'Contame hablando' }
 ];
 
 export function Landing() {
@@ -39,6 +40,7 @@ export function Landing() {
         <Link to="/onboarding">
           <Button variante="primario" tamano="lg" disabled={cargando}>
             Empezar
+            <Icono nombre="flecha-derecha" tamanio={18} />
           </Button>
         </Link>
         <p className="text-xs text-ink-secondary">Toma menos de un minuto. No pedimos CV ni documentos.</p>
@@ -67,7 +69,7 @@ export function Landing() {
                 title="Muy pronto"
                 className="inline-flex min-h-[44px] cursor-not-allowed items-center gap-2 rounded-full border border-line-subtle px-4 text-sm text-ink-secondary opacity-60"
               >
-                <span aria-hidden="true">{canal.icono}</span>
+                <Icono nombre={canal.icono} tamanio={16} />
                 {canal.texto}
                 <span className="sr-only">— muy pronto</span>
               </button>

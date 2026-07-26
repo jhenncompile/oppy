@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { Logo } from './Logo.jsx';
+import { Icono } from './Icono.jsx';
 
 /**
  * Navegacion principal.
@@ -18,10 +19,10 @@ import { Logo } from './Logo.jsx';
 // `corto` es la etiqueta de la barra inferior: "Mis oportunidades" no entra en
 // un cuarto de 390px. Se acorta a lo que la persona fue a buscar ahi.
 const DESTINOS = [
-  { a: '/oportunidades', icono: '◆', texto: 'Oportunidades' },
-  { a: '/seguimiento', icono: '★', texto: 'Mis oportunidades', corto: 'Guardadas' },
-  { a: '/calendario', icono: '▦', texto: 'Calendario' },
-  { a: '/perfil', icono: '●', texto: 'Mi perfil' }
+  { a: '/oportunidades', icono: 'brujula', texto: 'Oportunidades' },
+  { a: '/seguimiento', icono: 'marcador', texto: 'Mis oportunidades', corto: 'Guardadas' },
+  { a: '/calendario', icono: 'calendario', texto: 'Calendario' },
+  { a: '/perfil', icono: 'persona', texto: 'Mi perfil' }
 ];
 
 /** Cuenta lo que cierra pronto. Un numero dice mas que un punto rojo. */
@@ -65,7 +66,7 @@ export function Navegacion({ cierranPronto = 0 }) {
             {DESTINOS.map((destino) => (
               <li key={destino.a}>
                 <NavLink to={destino.a} className={enlaceClases}>
-                  <span aria-hidden="true" className="text-xs">{destino.icono}</span>
+                  <Icono nombre={destino.icono} tamanio={18} />
                   <span>{destino.texto}</span>
                   {destino.a === '/seguimiento' && <Aviso cantidad={cierranPronto} />}
                 </NavLink>
@@ -102,7 +103,7 @@ export function Navegacion({ cierranPronto = 0 }) {
                         className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-accent"
                       />
                     )}
-                    <span aria-hidden="true" className="text-sm">{destino.icono}</span>
+                    <Icono nombre={destino.icono} tamanio={20} />
                     <span className="text-center">{destino.corto ?? destino.texto}</span>
                     {destino.corto && <span className="sr-only">{destino.texto}</span>}
                   </>

@@ -5,19 +5,48 @@ import { OpportunityCard } from '../components/OpportunityCard.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
 import { useMatchesCompartidos } from '../Layout.jsx';
 import { diasRestantes, CIERRA_PRONTO_DIAS, enSeguimiento } from '../hooks/useMatches.js';
+import { Icono } from '../components/Icono.jsx';
 
 /**
  * El seguimiento avanza: guardada -> preparando -> aplicada -> entrevista ->
  * finalizada. Se muestra agrupado y no como tablero kanban: una lista es mas
  * simple de entender y, sobre todo, se puede usar con teclado y con lector de
  * pantalla. Arrastrar tarjetas no.
+ *
+ * Cada grupo tiene su icono para que la etapa se reconozca al bajar rapido por
+ * la pagina, sin leer los cinco titulos.
  */
 const GRUPOS = [
-  { estado: 'guardado', titulo: 'Guardadas', ayuda: 'Las marcaste para mirar despues.' },
-  { estado: 'preparando', titulo: 'Preparando', ayuda: 'Estas juntando lo que piden.' },
-  { estado: 'aplicada', titulo: 'Aplicadas', ayuda: 'Ya enviaste tu postulacion.' },
-  { estado: 'entrevista', titulo: 'En entrevista', ayuda: 'Te contactaron.' },
-  { estado: 'finalizada', titulo: 'Finalizadas', ayuda: 'Cerradas, con el resultado que sea.' }
+  {
+    estado: 'guardado',
+    titulo: 'Guardadas',
+    icono: 'marcador',
+    ayuda: 'Las marcaste para mirar despues.'
+  },
+  {
+    estado: 'preparando',
+    titulo: 'Preparando',
+    icono: 'libro',
+    ayuda: 'Estas juntando lo que piden.'
+  },
+  {
+    estado: 'aplicada',
+    titulo: 'Aplicadas',
+    icono: 'enviar',
+    ayuda: 'Ya enviaste tu postulacion.'
+  },
+  {
+    estado: 'entrevista',
+    titulo: 'En entrevista',
+    icono: 'personas',
+    ayuda: 'Te contactaron.'
+  },
+  {
+    estado: 'finalizada',
+    titulo: 'Finalizadas',
+    icono: 'check-circulo',
+    ayuda: 'Cerradas, con el resultado que sea.'
+  }
 ];
 
 /** Lo que cierra pronto va arriba de todo: es lo unico que tiene reloj. */
@@ -31,7 +60,8 @@ function Recordatorios({ matches }) {
 
   return (
     <div className="mb-8 rounded-lg border border-trust-pending-border bg-trust-pending-bg p-4">
-      <p className="text-sm font-medium text-trust-pending-text">
+      <p className="flex items-center gap-2 text-sm font-medium text-trust-pending-text">
+        <Icono nombre="reloj" tamanio={16} />
         {urgentes.length === 1 ? 'Una cierra pronto' : `${urgentes.length} cierran pronto`}
       </p>
       <ul className="mt-3 flex flex-col gap-2">
@@ -68,12 +98,14 @@ export function Seguimiento() {
 
       {seguidas.length === 0 ? (
         <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-6 text-center">
+          <Icono nombre="marcador" tamanio={40} className="text-ink-secondary" />
           <p className="text-lg font-medium text-ink">Todavia no guardaste ninguna.</p>
           <p className="text-sm text-ink-secondary">
             Cuando encuentres algo que te interese, guardalo y aca vas a poder
             seguirle el rastro hasta que se cierre.
           </p>
           <Button variante="primario" onClick={() => navegar('/oportunidades')}>
+            <Icono nombre="brujula" tamanio={16} />
             Ver oportunidades
           </Button>
         </div>
@@ -88,7 +120,8 @@ export function Seguimiento() {
 
               return (
                 <section key={grupo.estado}>
-                  <h3 className="text-base font-semibold text-ink">
+                  <h3 className="flex items-center gap-2 text-base font-semibold text-ink">
+                    <Icono nombre={grupo.icono} tamanio={17} className="text-ink-accent" />
                     {grupo.titulo}{' '}
                     <span className="font-normal text-ink-secondary">({delGrupo.length})</span>
                   </h3>

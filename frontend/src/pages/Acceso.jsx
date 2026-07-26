@@ -5,6 +5,7 @@ import { Button } from '../components/Button.jsx';
 import { Campo } from '../components/Campos.jsx';
 import { useAcceso } from '../hooks/useAcceso.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
+import { Icono } from '../components/Icono.jsx';
 
 const LARGO_CODIGO = 6;
 
@@ -54,6 +55,7 @@ export function Acceso() {
         <div className="mt-8">
           <Button variante="primario" tamano="lg" onClick={() => navegar('/onboarding')}>
             Armar mi perfil
+            <Icono nombre="flecha-derecha" tamanio={17} />
           </Button>
         </div>
       </Panel>
@@ -118,6 +120,7 @@ export function Acceso() {
                 onClick={enviarCodigo}
                 disabled={!contacto.trim() || enviando}
               >
+                <Icono nombre="correo" tamanio={17} />
                 {enviando ? 'Enviando…' : 'Mandame el codigo'}
               </Button>
               <button
@@ -167,8 +170,9 @@ export function Acceso() {
         )}
 
         {error && (
-          <p className="mt-6 text-sm text-trust-stale-text" role="alert">
-            {error}
+          <p className="mt-6 flex items-start gap-2 text-sm text-trust-stale-text" role="alert">
+            <Icono nombre="alerta" tamanio={16} className="mt-0.5" />
+            <span>{error}</span>
           </p>
         )}
       </div>

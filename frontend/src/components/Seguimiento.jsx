@@ -1,3 +1,5 @@
+import { Icono } from './Icono.jsx';
+
 /**
  * Estado de seguimiento de una oportunidad.
  *
@@ -10,11 +12,11 @@
  * siguiente se ofrece, nunca se asume.
  */
 const ETAPAS = [
-  { valor: 'guardado', etiqueta: 'Guardada', siguiente: 'Prepararla' },
-  { valor: 'preparando', etiqueta: 'Preparando', siguiente: 'Ya apliqué' },
-  { valor: 'aplicada', etiqueta: 'Aplicada', siguiente: 'Me llamaron' },
-  { valor: 'entrevista', etiqueta: 'En entrevista', siguiente: 'Cerrar' },
-  { valor: 'finalizada', etiqueta: 'Finalizada', siguiente: null }
+  { valor: 'guardado', etiqueta: 'Guardada', icono: 'marcador', siguiente: 'Prepararla' },
+  { valor: 'preparando', etiqueta: 'Preparando', icono: 'libro', siguiente: 'Ya apliqué' },
+  { valor: 'aplicada', etiqueta: 'Aplicada', icono: 'enviar', siguiente: 'Me llamaron' },
+  { valor: 'entrevista', etiqueta: 'En entrevista', icono: 'personas', siguiente: 'Cerrar' },
+  { valor: 'finalizada', etiqueta: 'Finalizada', icono: 'check-circulo', siguiente: null }
 ];
 
 const POR_VALOR = new Map(ETAPAS.map((etapa) => [etapa.valor, etapa]));
@@ -29,7 +31,10 @@ export function Seguimiento({ estado, onCambiar }) {
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-md bg-surface-subtle px-3 py-2">
-      <span className="text-xs font-medium text-ink">{etapa.etiqueta}</span>
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+        <Icono nombre={etapa.icono} tamanio={14} className="text-ink-accent" />
+        {etapa.etiqueta}
+      </span>
 
       {/* El progreso se comunica con texto ademas de con los puntos: un estado
           que solo se ve nunca llega a quien usa lector de pantalla. */}
@@ -51,9 +56,10 @@ export function Seguimiento({ estado, onCambiar }) {
         <button
           type="button"
           onClick={() => onCambiar(ETAPAS[indice + 1].valor)}
-          className="ml-auto min-h-[44px] text-xs font-medium text-ink-accent underline underline-offset-2 hover:opacity-80"
+          className="ml-auto inline-flex min-h-[44px] items-center gap-1.5 text-xs font-medium text-ink-accent underline underline-offset-2 hover:opacity-80"
         >
           {etapa.siguiente}
+          <Icono nombre="flecha-derecha" tamanio={13} />
         </button>
       )}
     </div>

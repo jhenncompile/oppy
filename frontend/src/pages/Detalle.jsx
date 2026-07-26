@@ -8,6 +8,7 @@ import { usePerfil } from '../hooks/usePerfil.jsx';
 import { useMatchesCompartidos } from '../Layout.jsx';
 import { diasRestantes, enSeguimiento } from '../hooks/useMatches.js';
 import { api } from '../api/client.js';
+import { Icono, iconoDeCategoria } from '../components/Icono.jsx';
 
 const FECHA = new Intl.DateTimeFormat('es-BO', {
   day: 'numeric',
@@ -90,16 +91,22 @@ function Cuenta({ fechaLimite }) {
     dias === 0 ? 'Cierra hoy' : dias === 1 ? 'Cierra maniana' : `Faltan ${dias} dias`;
 
   return (
-    <span className={dias <= 3 ? 'font-medium text-trust-stale-text' : 'text-ink'}>
+    <span
+      className={`inline-flex items-center gap-1.5 ${
+        dias <= 3 ? 'font-medium text-trust-stale-text' : 'text-ink'
+      }`}
+    >
+      <Icono nombre="reloj" tamanio={15} />
       {texto} · {FECHA.format(new Date(fechaLimite))}
     </span>
   );
 }
 
-function Bloque({ titulo, children }) {
+function Bloque({ titulo, icono, children }) {
   return (
     <section>
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-ink-secondary">
+      <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-secondary">
+        {icono && <Icono nombre={icono} tamanio={13} />}
         {titulo}
       </h3>
       <div className="mt-2 text-sm leading-relaxed text-ink">{children}</div>
@@ -134,13 +141,17 @@ export function Detalle() {
   if (!match) {
     return (
       <Panel centrado>
+        <Icono nombre="lupa" tamanio={40} className="mx-auto mb-4 text-ink-secondary" />
         <p className="text-lg font-medium text-ink">No encontre esa oportunidad.</p>
         <p className="mt-2 text-sm text-ink-secondary">
           Puede que la hayas descartado, o que ya no este vigente.
         </p>
         <div className="mt-6">
           <Link to="/oportunidades">
-            <Button variante="primario">Ver mis oportunidades</Button>
+            <Button variante="primario">
+              <Icono nombre="brujula" tamanio={16} />
+              Ver mis oportunidades
+            </Button>
           </Link>
         </div>
       </Panel>
@@ -171,15 +182,17 @@ export function Detalle() {
       <div className="mx-auto flex max-w-3xl flex-col gap-8">
         <Link
           to="/oportunidades"
-          className="self-start text-sm text-ink-secondary underline underline-offset-2 hover:text-ink"
+          className="inline-flex items-center gap-2 self-start text-sm text-ink-secondary underline underline-offset-2 hover:text-ink"
         >
-          ← Volver a mis oportunidades
+          <Icono nombre="flecha-izquierda" tamanio={16} />
+          Volver a mis oportunidades
         </Link>
 
         <header className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <TrustBadge confianza={oportunidad.confianza} />
             <span className="pill bg-surface-subtle capitalize text-ink-secondary">
+              <Icono nombre={iconoDeCategoria(oportunidad.categoria)} tamanio={13} />
               {legible(oportunidad.categoria)}
             </span>
             {oportunidad.sponsored && (
@@ -196,9 +209,12 @@ export function Detalle() {
           {/* Si no es elegible se dice de frente y arriba, no escondido abajo:
               hacer perder el tiempo a alguien es peor que darle una mala noticia. */}
           {match.elegible === false && (
-            <p className="rounded-md border border-trust-stale-border bg-trust-stale-bg p-3 text-sm text-trust-stale-text">
-              Hay un requisito que hoy no cumplis. Podes postular igual, pero
-              conviene que mires primero lo que falta.
+            <p className="flex items-start gap-2 rounded-md border border-trust-stale-border bg-trust-stale-bg p-3 text-sm text-trust-stale-text">
+              <Icono nombre="alerta" tamanio={16} className="mt-0.5" />
+              <span>
+                Hay un requisito que hoy no cumplis. Podes postular igual, pero
+                conviene que mires primero lo que falta.
+              </span>
             </p>
           )}
         </header>
@@ -206,11 +222,11 @@ export function Detalle() {
         {/* Las razones son la salida del razonamiento del agente: van primero y
             con peso propio, nunca como letra chica. */}
         <div className="rounded-lg bg-surface-accent p-5">
-          <Bloque titulo="Por que calza con vos">
+          <Bloque titulo="Por que calza con vos" icono="chispas">
             <ul className="flex flex-col gap-2">
               {match.razones?.map((razon) => (
                 <li key={razon} className="flex gap-2">
-                  <span aria-hidden="true" className="text-trust-verified-text">✓</span>
+                  <Icono nombre="check" tamanio={16} className="mt-0.5 text-trust-verified-text" />
                   <span>{razon}</span>
                 </li>
               ))}
@@ -221,7 +237,8 @@ export function Detalle() {
         {brechas.length > 0 && (
           <section>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-ink-secondary">
+              <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-secondary">
+                <Icono nombre="pendiente" tamanio={13} />
                 Para postular te falta
               </h3>
               <span className="text-xs text-ink-secondary">
@@ -259,21 +276,25 @@ export function Detalle() {
         )}
 
         <div className="grid gap-6 sm:grid-cols-2">
-          <Bloque titulo="Cuando cierra">
+          <Bloque titulo="Cuando cierra" icono="calendario">
             <Cuenta fechaLimite={oportunidad.fechaLimite} />
           </Bloque>
 
           {oportunidad.montoBeneficio && (
-            <Bloque titulo="Que incluye">{oportunidad.montoBeneficio}</Bloque>
+            <Bloque titulo="Que incluye" icono="monedas">
+              {oportunidad.montoBeneficio}
+            </Bloque>
           )}
         </div>
 
         {oportunidad.elegibilidad && (
-          <Bloque titulo="Quienes pueden postular">{oportunidad.elegibilidad}</Bloque>
+          <Bloque titulo="Quienes pueden postular" icono="personas">
+            {oportunidad.elegibilidad}
+          </Bloque>
         )}
 
         {oportunidad.skills?.length > 0 && (
-          <Bloque titulo="Lo que piden">
+          <Bloque titulo="Lo que piden" icono="objetivo">
             <ul className="flex flex-wrap gap-1.5">
               {oportunidad.skills.map((skill) => {
                 const laTengo = perfilTieneSkill(misHabilidades, skill);
@@ -287,6 +308,7 @@ export function Detalle() {
                         : 'bg-surface-subtle text-ink-secondary'
                     ].join(' ')}
                   >
+                    {laTengo && <Icono nombre="check" tamanio={13} />}
                     {legible(skill)}
                     {laTengo && <span className="sr-only"> — ya lo tenes</span>}
                   </li>
@@ -301,14 +323,16 @@ export function Detalle() {
 
         {/* La fuente sostiene la credibilidad del producto entero: se muestra
             completa, con enlace y fecha, nunca escondida. */}
-        <Bloque titulo="De donde lo saque">
+        <Bloque titulo="De donde lo saque" icono="globo">
           <a
             href={oportunidad.fuente.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-ink-accent underline underline-offset-2"
+            className="inline-flex items-center gap-1.5 text-ink-accent underline underline-offset-2"
           >
             {oportunidad.fuente.nombre}
+            {/* El icono avisa que el enlace saca del sitio, antes de tocarlo. */}
+            <Icono nombre="enlace-externo" tamanio={14} />
           </a>
           <p className="mt-1 text-xs text-ink-secondary">
             Revisado el {FECHA.format(new Date(oportunidad.fechaExtraida))}
@@ -318,19 +342,22 @@ export function Detalle() {
         <footer className="flex flex-wrap items-center gap-3 border-t border-line-subtle pt-6">
           <Button variante="primario" tamano="lg" onClick={postular}>
             Postular
+            <Icono nombre="enlace-externo" tamanio={17} />
           </Button>
           <Button
             variante="secundario"
             onClick={() => cambiarEstado(match, enSeg ? 'visto' : 'guardado')}
             aria-pressed={enSeg}
           >
-            {enSeg ? '♥ Guardada' : '♡ Guardar'}
+            <Icono nombre="marcador" tamanio={15} relleno={enSeg} />
+            {enSeg ? 'Guardada' : 'Guardar'}
           </Button>
           <button
             type="button"
             onClick={descartar}
-            className="ml-auto min-h-[44px] text-sm text-ink-secondary underline underline-offset-2 hover:text-ink"
+            className="ml-auto inline-flex min-h-[44px] items-center gap-1.5 text-sm text-ink-secondary underline underline-offset-2 hover:text-ink"
           >
+            <Icono nombre="equis" tamanio={15} />
             No me interesa
           </button>
         </footer>

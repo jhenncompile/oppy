@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icono } from './Icono.jsx';
 
 /**
  * Narracion del proceso en vivo.
@@ -9,24 +10,34 @@ import { useEffect, useRef, useState } from 'react';
  * que no hay nada precargado.
  */
 
+/**
+ * Cada etapa lleva el icono de lo que el agente esta haciendo, no un simbolo
+ * decorativo: leer, buscar, filtrar, comparar. Es lo que hace que la lista se
+ * entienda como trabajo y no como una barra de carga disfrazada.
+ */
 const ICONOS = {
-  perfil: '◆',
-  plan_inicio: '◇',
-  plan_fin: '◆',
-  descubrimiento_inicio: '◇',
-  fuente_inicio: '·',
-  fuente_fin: '·',
-  busqueda_inicio: '·',
-  busqueda_fin: '·',
-  descubrimiento_fin: '◆',
-  normalizacion_inicio: '◇',
-  normalizacion_progreso: '·',
-  normalizacion_fin: '◆',
-  indice: '◆',
-  scoring_inicio: '◇',
-  scoring_fin: '◆',
-  error: '✕'
+  perfil: 'persona',
+  plan_inicio: 'chispas',
+  plan_fin: 'objetivo',
+  descubrimiento_inicio: 'lupa',
+  fuente_inicio: 'globo',
+  busqueda_inicio: 'lupa',
+  busqueda_fin: 'check',
+  descubrimiento_fin: 'check-circulo',
+  normalizacion_inicio: 'filtro',
+  normalizacion_progreso: 'punto',
+  normalizacion_fin: 'check-circulo',
+  indice: 'base',
+  scoring_inicio: 'balanza',
+  scoring_fin: 'check-circulo',
+  error: 'alerta'
 };
+
+/** Una fuente que no respondio se marca distinto, pero no como error. */
+function iconoDe(paso) {
+  if (paso.tipo === 'fuente_fin') return paso.exito ? 'check' : 'alerta';
+  return ICONOS[paso.tipo] ?? 'punto';
+}
 
 /** Los pasos de detalle no traen mensaje: se arma aca para no ensuciar el backend. */
 function textoDe(paso) {
@@ -95,9 +106,7 @@ export function AgentProcess({ pasos, estado }) {
                 esError ? 'text-trust-stale-text' : ''
               ].join(' ')}
             >
-              <span className="mt-0.5 select-none text-xs" aria-hidden="true">
-                {ICONOS[paso.tipo] ?? '·'}
-              </span>
+              <Icono nombre={iconoDe(paso)} tamanio={detalle ? 14 : 17} className="mt-0.5" />
               <span>{textoDe(paso)}</span>
             </li>
           );

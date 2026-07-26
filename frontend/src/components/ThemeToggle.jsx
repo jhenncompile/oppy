@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Icono } from './Icono.jsx';
 
 const CLAVE = 'oppy-tema';
 
@@ -42,7 +43,7 @@ export function ThemeToggle() {
       aria-label={oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
       className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-line-subtle bg-surface-card px-4 text-sm text-ink-secondary transition hover:bg-surface-hover"
     >
-      <span aria-hidden="true">{oscuro ? '☀' : '☾'}</span>
+      <Icono nombre={oscuro ? 'sol' : 'luna'} tamanio={18} />
       <span>{oscuro ? 'Claro' : 'Oscuro'}</span>
     </button>
   );

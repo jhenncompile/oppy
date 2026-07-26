@@ -3,6 +3,7 @@ import { TrustBadge } from './TrustBadge.jsx';
 import { ScoreBar } from './ScoreBar.jsx';
 import { Button } from './Button.jsx';
 import { Seguimiento } from './Seguimiento.jsx';
+import { Icono, iconoDeCategoria } from './Icono.jsx';
 
 /** Devuelve dias restantes, o null si no hay fecha limite. */
 function diasRestantes(fechaLimite) {
@@ -26,8 +27,13 @@ function Deadline({ fechaLimite }) {
 
   return (
     <span
-      className={`text-xs font-medium ${urgente ? 'text-trust-stale-text' : 'text-ink-secondary'}`}
+      className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+        urgente ? 'text-trust-stale-text' : 'text-ink-secondary'
+      }`}
     >
+      {/* El reloj solo aparece cuando corre el plazo: un icono en cada fecha
+          seria ruido, en las tres que cierran esta semana es una senial. */}
+      {urgente && <Icono nombre="reloj" tamanio={13} />}
       {texto}
     </span>
   );
@@ -46,6 +52,7 @@ export function OpportunityCard({ match, onGuardar, onSeguimiento }) {
             <span className="pill bg-surface-subtle text-ink-secondary">Patrocinada</span>
           )}
           <span className="pill bg-surface-subtle text-ink-secondary capitalize">
+            <Icono nombre={iconoDeCategoria(oportunidad.categoria)} tamanio={13} />
             {oportunidad.categoria}
           </span>
           <Deadline fechaLimite={oportunidad.fechaLimite} />
@@ -65,7 +72,8 @@ export function OpportunityCard({ match, onGuardar, onSeguimiento }) {
       {/* La salida visible del razonamiento del agente. No es letra chica:
           es la prueba de que el modelo decidio y no solo listo resultados. */}
       <div className="rounded-md bg-surface-accent p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-accent">
+        <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-accent">
+          <Icono nombre="chispas" tamanio={13} />
           Por que calza con vos
         </p>
         <ul className="mt-2 flex flex-col gap-1.5">
@@ -73,7 +81,7 @@ export function OpportunityCard({ match, onGuardar, onSeguimiento }) {
             <li key={razon} className="flex gap-2 text-sm leading-relaxed text-ink-secondary">
               {/* El icono acompana al texto, nunca lo reemplaza: el estado
                   tiene que entenderse tambien leido por un lector de pantalla. */}
-              <span aria-hidden="true" className="text-trust-verified-text">✓</span>
+              <Icono nombre="check" tamanio={15} className="mt-0.5 text-trust-verified-text" />
               <span>{razon}</span>
             </li>
           ))}
@@ -81,13 +89,14 @@ export function OpportunityCard({ match, onGuardar, onSeguimiento }) {
 
         {match.brechas?.length > 0 && (
           <div className="mt-4 border-t border-line-subtle pt-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-secondary">
+            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-secondary">
+              <Icono nombre="pendiente" tamanio={13} />
               Para postular te falta
             </p>
             <ul className="mt-2 flex flex-col gap-1.5">
               {match.brechas.map((brecha) => (
                 <li key={brecha} className="flex gap-2 text-sm leading-relaxed text-ink-secondary">
-                  <span aria-hidden="true" className="text-ink-muted">○</span>
+                  <Icono nombre="pendiente" tamanio={15} className="mt-0.5" />
                   <span>{brecha}</span>
                 </li>
               ))}
@@ -109,12 +118,18 @@ export function OpportunityCard({ match, onGuardar, onSeguimiento }) {
           onClick={() => onGuardar(match)}
           aria-pressed={guardada}
         >
+          {/* El marcador relleno es lo que distingue guardada de no guardada de
+              un vistazo; el texto igual cambia, para quien no ve el icono. */}
+          <Icono nombre="marcador" tamanio={15} relleno={guardada} />
           {guardada ? 'Quitar' : 'Guardar'}
         </Button>
         {/* Lleva al detalle, no al enlace externo: sacar a alguien del producto
             antes de que vea por que le sirve es perderlo. */}
         <Link to={`/oportunidad/${match.id}`}>
-          <Button variante="acento">Ver detalle</Button>
+          <Button variante="acento">
+            Ver detalle
+            <Icono nombre="flecha-derecha" tamanio={15} />
+          </Button>
         </Link>
       </footer>
     </article>

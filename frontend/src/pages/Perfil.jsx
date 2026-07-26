@@ -4,6 +4,7 @@ import { Panel, PanelTitulo } from '../components/Panel.jsx';
 import { Button } from '../components/Button.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
 import { api } from '../api/client.js';
+import { Icono } from '../components/Icono.jsx';
 
 const OBJETIVOS = {
   empleo: 'Encontrar empleo',
@@ -17,10 +18,13 @@ const OBJETIVOS = {
 
 const legible = (slug) => slug.replace(/_/g, ' ');
 
-function Dato({ etiqueta, children }) {
+function Dato({ etiqueta, icono, children }) {
   return (
     <div className="flex flex-col gap-1 border-b border-line-subtle py-3 last:border-0 sm:flex-row sm:gap-4">
-      <dt className="text-sm text-ink-secondary sm:w-48 sm:shrink-0">{etiqueta}</dt>
+      <dt className="flex items-center gap-2 text-sm text-ink-secondary sm:w-48 sm:shrink-0">
+        <Icono nombre={icono} tamanio={15} />
+        {etiqueta}
+      </dt>
       <dd className="text-sm text-ink">{children}</dd>
     </div>
   );
@@ -68,25 +72,25 @@ export function Perfil() {
       </div>
 
       <dl className="mx-auto max-w-2xl">
-        <Dato etiqueta="Buscas">
+        <Dato etiqueta="Buscas" icono="objetivo">
           <Etiquetas
             valores={(perfil.objetivos ?? []).map((o) => OBJETIVOS[o] ?? o)}
             vacio="Sin definir"
           />
         </Dato>
-        <Dato etiqueta="Te dedicas a">{perfil.carrera}</Dato>
-        <Dato etiqueta="Estudios">{perfil.nivelEstudios}</Dato>
-        <Dato etiqueta="Donde vivis">{perfil.ubicacion}</Dato>
-        <Dato etiqueta="Experiencia">
+        <Dato etiqueta="Te dedicas a" icono="maletin">{perfil.carrera}</Dato>
+        <Dato etiqueta="Estudios" icono="birrete">{perfil.nivelEstudios}</Dato>
+        <Dato etiqueta="Donde vivis" icono="ubicacion">{perfil.ubicacion}</Dato>
+        <Dato etiqueta="Experiencia" icono="libro">
           <Etiquetas valores={perfil.experiencia} vacio="No cargaste ninguna" />
         </Dato>
-        <Dato etiqueta="Habilidades">
+        <Dato etiqueta="Habilidades" icono="chispas">
           <Etiquetas valores={perfil.habilidades} vacio="No cargaste ninguna" />
         </Dato>
-        <Dato etiqueta="A tener en cuenta">
+        <Dato etiqueta="A tener en cuenta" icono="info">
           <Etiquetas valores={perfil.restricciones} vacio="Nada en particular" />
         </Dato>
-        <Dato etiqueta="Te aviso a">
+        <Dato etiqueta="Te aviso a" icono="campana">
           {perfil.aceptaNotificaciones
             ? perfil.email || perfil.telefono
             : 'No pediste que te avise'}
@@ -94,7 +98,12 @@ export function Perfil() {
       </dl>
 
       {/* Opt-in del matching inverso. Apagado por defecto y revocable: el
-          consentimiento queda registrado con su fecha del lado del servidor. */}
+          consentimiento queda registrado con su fecha del lado del servidor.
+
+          El texto aclara que todavia no hay organizaciones publicando porque
+          es verdad: hoy nada consume el listado de perfiles visibles. Pedir un
+          permiso en presente para un uso que todavia no ocurre es lo que hace
+          que despues no se crea ninguno de los otros permisos. */}
       <div className="mx-auto mt-10 max-w-2xl rounded-lg border border-line-subtle p-4">
         <label className="flex min-h-[44px] cursor-pointer items-start gap-3">
           <input
@@ -109,14 +118,16 @@ export function Perfil() {
               Dejar que las organizaciones me encuentren
             </strong>
             <br />
-            Si lo activas, las organizaciones que publican en Oppy pueden verte y
-            proponerte oportunidades. Podes apagarlo cuando quieras.
+            Todavia ninguna organizacion publica en Oppy. Si lo activas ahora,
+            vas a aparecer para las que empiecen a hacerlo y podran proponerte
+            oportunidades. Podes apagarlo cuando quieras.
           </span>
         </label>
       </div>
 
       <div className="mx-auto mt-10 flex max-w-2xl flex-wrap justify-between gap-3">
         <Button variante="primario" onClick={() => navegar('/buscando')}>
+          <Icono nombre="refrescar" tamanio={16} />
           Volver a buscar
         </Button>
         <Button
@@ -126,6 +137,7 @@ export function Perfil() {
             navegar('/', { replace: true });
           }}
         >
+          <Icono nombre="equis" tamanio={16} />
           Empezar de cero
         </Button>
       </div>

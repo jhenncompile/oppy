@@ -6,6 +6,7 @@ import { AgentProcess } from '../components/AgentProcess.jsx';
 import { useAgentRun } from '../hooks/useAgentRun.js';
 import { usePerfil } from '../hooks/usePerfil.jsx';
 import { useMatchesCompartidos } from '../Layout.jsx';
+import { Icono } from '../components/Icono.jsx';
 
 const PAUSA_ANTES_DE_RESULTADOS_MS = 900;
 
@@ -84,9 +85,11 @@ export function Buscando() {
               iniciar(perfil.id);
             }}
           >
+            <Icono nombre="refrescar" tamanio={16} />
             Intentar de nuevo
           </Button>
           <Button variante="secundario" onClick={() => navegar('/oportunidades')}>
+            <Icono nombre="brujula" tamanio={16} />
             Ver lo que ya tengo
           </Button>
         </div>
