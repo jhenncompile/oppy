@@ -60,7 +60,12 @@ export async function normalizar(documento, opciones = {}) {
   }
 
   const lotes = await normalizarConOllama(documento, opciones);
-  return filtrarPorCategorias(lotes, opciones.categorias);
+  if (lotes.length > 0) return filtrarPorCategorias(lotes, opciones.categorias);
+
+  // Si Ollama timeout/falla, igual devolvemos algo usable a partir del titulo
+  // y texto que ya trajo Exa/Firecrawl. Mejor una oferta basica que cero.
+  const fallback = normalizarHeuristico(documento, opciones.categorias);
+  return filtrarPorCategorias(fallback, opciones.categorias);
 }
 
 function filtrarPorCategorias(oportunidades, categorias) {
@@ -132,6 +137,63 @@ async function normalizarConOllama(documento, opciones = {}) {
     .filter(Boolean);
 }
 
+/**
+ * Extraccion minima sin LLM: titulo de la pagina + categoria del plan.
+ * Sirve cuando Ollama no responde a tiempo en una laptop.
+ */
+export function normalizarHeuristico(documento, categorias = []) {
+  const titulo = (documento.titulo ?? '').trim().replace(/\s+/g, ' ');
+  if (titulo.length < 8) return [];
+
+  // Listados genericos no son una oferta concreta.
+  if (/^(ofertas?|empleos?|pasantias?|trabajos?|resultados)\b/i.test(titulo)) return [];
+  if (/trabajo-de-pasantias|\/ofertas\/?$/i.test(documento.url ?? '')) return [];
+
+  const texto = (documento.texto ?? '').trim();
+  const categoria = inferirCategoria(titulo, texto, categorias);
+  if (categorias?.length && !categorias.includes(categoria)) return [];
+
+  const descripcion = texto
+    ? texto.slice(0, 400).replace(/\s+/g, ' ').trim()
+    : null;
+
+  const dominio = aDominio(
+    {
+      titulo: titulo.slice(0, 300),
+      categoria,
+      descripcion,
+      elegibilidad: null,
+      monto_beneficio: null,
+      skills: [],
+      fecha_limite: null,
+      link_aplicacion: documento.url
+    },
+    documento
+  );
+
+  if (dominio) {
+    log.info('Normalizacion heuristica (sin LLM)', {
+      url: documento.url,
+      titulo: dominio.titulo,
+      categoria: dominio.categoria
+    });
+  }
+
+  return dominio ? [dominio] : [];
+}
+
+function inferirCategoria(titulo, texto, categorias) {
+  const blob = `${titulo} ${texto}`.toLowerCase();
+  if (/\bpasant[ií]a/.test(blob) && (!categorias?.length || categorias.includes('pasantia'))) {
+    return 'pasantia';
+  }
+  if (/\bbecas?\b/.test(blob) && (!categorias?.length || categorias.includes('beca'))) {
+    return 'beca';
+  }
+  if (categorias?.includes('empleo')) return 'empleo';
+  return categorias?.[0] ?? 'empleo';
+}
+
 function construirPrompt(documento, categorias) {
   const foco = categorias?.length
     ? `Solo extrae oportunidades de estas categorias: ${categorias.join(', ')}. Ignora el resto.`
@@ -144,7 +206,8 @@ function construirPrompt(documento, categorias) {
     foco,
     '',
     'Contenido:',
-    documento.texto.slice(0, 4000),
+    // Menos texto = respuesta mas rapida en CPU local.
+    documento.texto.slice(0, 2500),
     '',
     'Devolve un objeto JSON con esta forma exacta:',
     '{"oportunidades":[{"titulo":"","categoria":"beca|pasantia|empleo|intercambio|concurso|financiamiento|curso","descripcion":null,"elegibilidad":null,"monto_beneficio":null,"skills":[],"fecha_limite":null,"link_aplicacion":null}]}'

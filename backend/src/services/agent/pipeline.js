@@ -13,8 +13,10 @@ import * as runTracker from './runTracker.js';
 
 const log = logger.child({ module: 'pipeline' });
 
-const CONCURRENCIA_NORMALIZACION = 2;
-const CONCURRENCIA_SCORING = 2;
+// En local Ollama no aguanta bien 2 extracciones a la vez: se pisan y
+// terminan en timeout → 0 oportunidades. Una a la vez es mas lento pero fiable.
+const CONCURRENCIA_NORMALIZACION = 1;
+const CONCURRENCIA_SCORING = 1;
 
 /**
  * Registra la corrida y arranca el trabajo, devolviendo el runId de inmediato.
@@ -119,8 +121,9 @@ async function correr({ perfil, corrida, disparador }) {
 async function descubrirYNormalizar(plan, paso) {
   paso({ tipo: 'descubrimiento_inicio', mensaje: 'Rastreando fuentes' });
   const documentos = await descubrir(plan, paso);
+  const priorizados = priorizarDocumentos(documentos);
   const tope = env.MAX_NORMALIZE_PER_RUN;
-  const aProcesar = documentos.slice(0, tope);
+  const aProcesar = priorizados.slice(0, tope);
 
   if (documentos.length > tope) {
     paso({
@@ -154,7 +157,7 @@ async function descubrirYNormalizar(plan, paso) {
       });
       paso({
         tipo: 'normalizacion_progreso',
-        mensaje: `Pagina ${indice + 1} de ${totalDocs}`,
+        mensaje: `Pagina ${indice + 1} de ${totalDocs}${lote.length ? ` → ${lote.length}` : ''}`,
         procesados: indice + 1,
         total: totalDocs
       });
@@ -169,6 +172,29 @@ async function descubrirYNormalizar(plan, paso) {
   });
 
   return oportunidades;
+}
+
+/**
+ * Prefiere ofertas concretas (con titulo de Exa) sobre listados genericos
+ * scrapeados: esos listados consumen el presupuesto de normalizacion y
+ * suelen no devolver nada util.
+ */
+function priorizarDocumentos(documentos) {
+  return [...documentos].sort((a, b) => puntajeDocumento(b) - puntajeDocumento(a));
+}
+
+function puntajeDocumento(documento) {
+  let puntos = 0;
+  const titulo = (documento.titulo ?? '').trim();
+  const url = documento.url ?? '';
+
+  if (titulo.length >= 12) puntos += 3;
+  if (documento.origenBusqueda || documento.texto?.length > 200) puntos += 2;
+  if (/computrabajo\.com|\/trabajo-de-pasantias|\/ofertas\/?$/i.test(url)) puntos -= 4;
+  if (/pasantias?$|ofertas de trabajo|buscar empleo/i.test(titulo)) puntos -= 3;
+  if (/ingenier|analista|desarroll|empleo|trabajo|pasant/i.test(titulo)) puntos += 2;
+
+  return puntos;
 }
 
 /**

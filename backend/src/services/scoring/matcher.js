@@ -138,12 +138,78 @@ export async function evaluarSeguro(perfil, oportunidad, opciones) {
   try {
     return await evaluar(perfil, oportunidad, opciones);
   } catch (error) {
-    log.warn('Evaluacion fallida', {
-      oportunidad: oportunidad.id,
+    log.warn('Evaluacion fallida, se usa puntaje heuristic', {
+      oportunidad: oportunidad.id ?? oportunidad.titulo,
       error: error.message
     });
-    return null;
+    return evaluarHeuristico(perfil, oportunidad);
   }
+}
+
+/**
+ * Compatibilidad basica por solapamiento de palabras: permite mostrar
+ * resultados aunque Ollama no responda a tiempo en la laptop.
+ */
+export function evaluarHeuristico(perfil, oportunidad) {
+  const tokensPerfil = tokensDe([
+    perfil.carrera,
+    perfil.ubicacion,
+    ...(perfil.habilidades ?? []),
+    ...(perfil.intereses ?? []),
+    perfil.objetivo
+  ]);
+  const tokensOpp = tokensDe([
+    oportunidad.titulo,
+    oportunidad.descripcion,
+    oportunidad.elegibilidad,
+    ...(oportunidad.skills ?? [])
+  ]);
+
+  if (tokensPerfil.size === 0 || tokensOpp.size === 0) {
+    return {
+      compatibilidad: 45,
+      elegible: true,
+      razones: ['La oferta calza con lo que pediste buscar; revisá el aviso para confirmar requisitos.'],
+      brechas: []
+    };
+  }
+
+  let hits = 0;
+  for (const token of tokensPerfil) {
+    if (tokensOpp.has(token)) hits += 1;
+  }
+
+  const ratio = hits / tokensPerfil.size;
+  const compatibilidad = Math.max(35, Math.min(88, Math.round(40 + ratio * 50)));
+  const razones = hits > 0
+    ? [`Encontre solapamiento entre tu perfil y el aviso (${hits} coincidencia${hits === 1 ? '' : 's'}).`]
+    : ['Es una oferta del tipo que pediste; el modelo no pudo razonar el detalle a tiempo.'];
+
+  return {
+    compatibilidad,
+    elegible: true,
+    razones,
+    brechas: []
+  };
+}
+
+function tokensDe(valores) {
+  const stop = new Set([
+    'de', 'del', 'la', 'el', 'los', 'las', 'en', 'y', 'o', 'a', 'un', 'una',
+    'para', 'con', 'por', 'bol', 'bolivia', 'anio', 'año'
+  ]);
+  const out = new Set();
+  for (const valor of valores) {
+    if (!valor) continue;
+    const limpio = String(valor)
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase();
+    for (const parte of limpio.split(/[^a-z0-9]+/)) {
+      if (parte.length >= 3 && !stop.has(parte)) out.add(parte);
+    }
+  }
+  return out;
 }
 
 function formatearIdiomas(idiomas) {

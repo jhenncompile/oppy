@@ -6,7 +6,7 @@ import { mapConLimite, mapExitosos } from '../src/utils/concurrency.js';
 import { fuentesActivas, fuentesPorEstrategia, ESTRATEGIAS } from '../src/services/scraping/sources.js';
 import { combinacionesDeBusqueda } from '../src/services/scraping/discovery.js';
 import { extraerJson } from '../src/services/llm/index.js';
-import { calcularHash } from '../src/services/agent/normalizer.js';
+import { calcularHash, normalizarHeuristico } from '../src/services/agent/normalizer.js';
 import { mensajeDeOportunidad } from '../src/services/notifications/templates.js';
 import { AppError } from '../src/utils/AppError.js';
 import {
@@ -22,6 +22,7 @@ import {
   planDeRespaldo,
   planDesdePerfil
 } from '../src/services/agent/orchestrator.js';
+import { evaluarHeuristico } from '../src/services/scoring/matcher.js';
 
 const MANANA = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 const AYER = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
@@ -422,4 +423,42 @@ test('orquestador: alinearConObjetivo descarta queries de becas si pide empleo',
 test('orquestador: categoriasPara respeta el objetivo', () => {
   assert.deepEqual(categoriasPara({ objetivo: 'empleo' }), ['empleo', 'pasantia']);
   assert.deepEqual(categoriasPara({ objetivo: 'voluntariado' }), ['voluntariado']);
+});
+
+test('normalizer: heuristica arma oferta desde titulo de Exa', () => {
+  const lotes = normalizarHeuristico(
+    {
+      titulo: 'Analista de desarrollo de sistemas — Santa Cruz',
+      url: 'https://trabajito.com.bo/trabajo/analista-de-desarrollo',
+      texto: 'Buscamos analista con Excel para Santa Cruz.',
+      fuente: { nombre: 'Exa', url: 'https://trabajito.com.bo/trabajo/analista-de-desarrollo' }
+    },
+    ['empleo', 'pasantia']
+  );
+
+  assert.equal(lotes.length, 1);
+  assert.equal(lotes[0].categoria, 'empleo');
+  assert.match(lotes[0].titulo, /Analista/);
+});
+
+test('normalizer: heuristica ignora listados genericos', () => {
+  const lotes = normalizarHeuristico(
+    {
+      titulo: 'Ofertas de trabajo',
+      url: 'https://www.computrabajo.com.bo/trabajo-de-pasantias',
+      texto: 'listado',
+      fuente: { nombre: 'Computrabajo', url: 'https://www.computrabajo.com.bo/trabajo-de-pasantias' }
+    },
+    ['empleo']
+  );
+  assert.equal(lotes.length, 0);
+});
+
+test('matcher: heuristica da puntaje usable sin LLM', () => {
+  const evalucion = evaluarHeuristico(
+    { carrera: 'Sistemas', ubicacion: 'Santa Cruz', habilidades: ['Excel'] },
+    { titulo: 'Analista de sistemas Santa Cruz', descripcion: 'Se requiere Excel', skills: [] }
+  );
+  assert.ok(evalucion.compatibilidad >= 40);
+  assert.equal(evalucion.elegible, true);
 });

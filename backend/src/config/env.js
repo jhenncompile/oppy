@@ -37,7 +37,7 @@ const schema = z.object({
   // Tope de paginas a estructurar por corrida: sin esto, 20+ llamadas
   // secuenciales a Ollama dejan la UI en "Leyendo y estructurando…" minutos.
   MAX_NORMALIZE_PER_RUN: z.coerce.number().int().positive().default(6),
-  NORMALIZE_TIMEOUT_MS: z.coerce.number().int().positive().default(45_000),
+  NORMALIZE_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
   MAX_SCORING_PER_RUN: z.coerce.number().int().positive().default(20),
 
   CRON_ENABLED: z.enum(['true', 'false']).default('false'),
