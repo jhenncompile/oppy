@@ -1,0 +1,21 @@
+{
+  "name": "oppy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Agente que descubre, verifica y recomienda oportunidades para jovenes en Bolivia",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node scripts/oppy.mjs",
+    "setup": "node scripts/oppy.mjs preparar",
+    "dev:api": "node scripts/oppy.mjs backend",
+    "dev:web": "node scripts/oppy.mjs frontend",
+    "test": "npm test --prefix backend",
+    "migrate": "npm run migrate --prefix backend",
+    "seed": "npm run seed --prefix backend",
+    "cron": "npm run cron --prefix backend",
+    "build": "npm run build --prefix frontend"
+  }
+}

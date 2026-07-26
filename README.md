@@ -9,25 +9,73 @@ explica **por que** cada una calza con tu perfil.
 
 ## Setup
 
+Requiere Node 20+, PostgreSQL corriendo en local y un modelo servido por
+Ollama.
+
 ```bash
-# 1. Clonar e instalar
 git clone <repo> && cd Oppy
+npm start
+```
+
+`npm start` abre un menu con las tres cosas que hay que hacer:
+
+```
+Oppy — entorno local
+  entorno sin preparar — empieza por la opcion 1
+
+  1) Preparar el entorno     .env, base de datos, esquema, datos demo
+  2) Levantar el backend     http://localhost:3001
+  3) Levantar el frontend    http://localhost:5173
+  0) Salir
+```
+
+**Opcion 1** instala dependencias, escribe los `.env` (pregunta la contrasena de
+PostgreSQL sin mostrarla en pantalla), crea la base si falta, aplica el esquema,
+siembra perfiles de prueba y verifica que Ollama responda. Es idempotente: se
+puede elegir las veces que haga falta. No pisa un `.env` existente sin
+preguntar, ni vuelve a sembrar si ya hay perfiles — `seed` inserta sin upsert,
+asi que correrlo dos veces duplicaria los datos.
+
+**Opciones 2 y 3** van en **terminales separadas**: se abre esta herramienta en
+cada una y se elige 2 en una, 3 en la otra. Estan aparte a proposito — son dos
+servicios distintos tambien en despliegue (Render y Netlify), y separados se
+reinicia o se leen los logs de uno sin tocar el otro. `Ctrl+C` baja el servicio
+y devuelve al menu.
+
+Cada opcion tambien es invocable directamente, sin pasar por el menu:
+
+```bash
+npm run setup     # opcion 1     (node scripts/oppy.mjs preparar)
+npm run dev:api   # opcion 2     (node scripts/oppy.mjs backend)
+npm run dev:web   # opcion 3     (node scripts/oppy.mjs frontend)
+```
+
+Sin Ollama la API y el dashboard levantan igual; lo que falla es
+`POST /api/agent/run`, que es donde entran el normalizador y el scoring.
+
+<details>
+<summary>Los mismos pasos, a mano</summary>
+
+```bash
 npm install --prefix backend && npm install --prefix frontend
 
-# 2. Configurar el entorno
 cp backend/.env.example backend/.env      # DATABASE_URL, EXA_API_KEY, FIRECRAWL_API_KEY
 cp frontend/.env.example frontend/.env
 
-# 3. Crear el esquema y perfiles de prueba
+createdb oppy
 npm run migrate --prefix backend
 npm run seed --prefix backend
 
-# 4. Levantar
-npm run dev --prefix backend              # http://localhost:3001
-npm run dev --prefix frontend             # http://localhost:5173
+ollama pull llama3.1:8b
+
+npm run dev --prefix backend
+npm run dev --prefix frontend
 ```
 
-Requiere Node 20+, PostgreSQL y un modelo servido por Ollama.
+En Windows, `createdb` suele no estar en el PATH — la opcion 1 crea la base con
+el cliente `pg` del backend justamente para no depender de eso.
+
+</details>
 
 ## Arquitectura
 
@@ -152,3 +200,10 @@ alternativas: activar los dos duplicaria el descubrimiento.
 
 El razonamiento de producto vive en [`docs/`](docs/): problema, solucion,
 modulos, diseno, desarrollo, modelo de negocio y plan de ejecucion.
+
+Las reglas de trabajo sobre el repo — decisiones que no se negocian, invariantes
+de arquitectura, convenciones — estan en [`CLAUDE.md`](CLAUDE.md).
+
+Las features que cruzan mas de un modulo o tocan el contrato central se
+especifican antes de escribirse: el loop y las plantillas estan en
+[`specs/`](specs/README.md).
