@@ -3,6 +3,8 @@ import { env } from '../../config/env.js';
 import { completeJson } from '../llm/index.js';
 import * as oppyClient from '../llm/oppyClient.js';
 import { perfilAOppy, oportunidadAOppy, matchingAEvaluacion } from '../llm/oppyAdapter.js';
+import { categoriasPara } from '../agent/orchestrator.js';
+import { tituloConfiable } from './relevancia.js';
 import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ module: 'matcher' });
@@ -71,7 +73,8 @@ async function evaluarConOppy(perfil, oportunidad) {
   const evaluacion = matchingAEvaluacion(data);
   if (!evaluacion) return null;
 
-  const ajustada = aplicarSenalesFeedback(evaluacion, perfil.feedback, oportunidad);
+  const alineada = aplicarAlineacionObjetivo(evaluacion, perfil, oportunidad);
+  const ajustada = aplicarSenalesFeedback(alineada, perfil.feedback, oportunidad);
 
   const validada = evaluacionSchema.safeParse(ajustada);
   if (!validada.success) {
@@ -84,6 +87,53 @@ async function evaluarConOppy(perfil, oportunidad) {
     elegible: validada.data.elegible,
     razones: validada.data.razones.map((razon) => razon.trim()),
     brechas: validada.data.brechas.map((brecha) => brecha.trim())
+  };
+}
+
+/**
+ * El LoRA suele castigar "sin overlap de skills" aunque la categoria sea
+ * exactamente lo que la persona pidio (beca/curso). Sin este piso, la UI
+ * estructura bien y despues muestra vacio.
+ */
+function aplicarAlineacionObjetivo(evaluacion, perfil, oportunidad) {
+  if (!tituloConfiable(oportunidad.titulo)) {
+    return {
+      compatibilidad: 0,
+      elegible: false,
+      razones: ['Descartada: el titulo es demasiado generico'],
+      brechas: evaluacion.brechas ?? []
+    };
+  }
+
+  const permitidas = categoriasPara(perfil);
+  let score = evaluacion.compatibilidad;
+  let elegible = evaluacion.elegible;
+  const razones = [...(evaluacion.razones ?? [])];
+  const cat = oportunidad.categoria;
+
+  if (permitidas.length > 0 && !permitidas.includes(cat)) {
+    return {
+      ...evaluacion,
+      compatibilidad: Math.min(score, 18),
+      elegible: false,
+      razones: razones.slice(0, 5)
+    };
+  }
+
+  // Piso cuando la categoria calza con el objetivo del onboarding.
+  if (permitidas.includes(cat) && score > 0 && score < 52) {
+    score = 52;
+    razones.unshift(`Calza con tu busqueda de ${cat}`);
+    elegible = true;
+  } else {
+    elegible = elegible && score >= 30;
+  }
+
+  return {
+    ...evaluacion,
+    compatibilidad: score,
+    elegible,
+    razones: razones.slice(0, 5)
   };
 }
 
@@ -171,12 +221,14 @@ async function evaluarConOllama(perfil, oportunidad, perspectiva) {
     timeoutMs: env.LLM_TIMEOUT_MS
   });
 
-  return {
+  const base = {
     compatibilidad: resultado.compatibilidad,
     elegible: resultado.elegible,
     razones: resultado.razones.map((razon) => razon.trim()),
     brechas: resultado.brechas.map((brecha) => brecha.trim())
   };
+  const alineada = aplicarAlineacionObjetivo(base, perfil, oportunidad);
+  return aplicarSenalesFeedback(alineada, perfil.feedback, oportunidad);
 }
 
 /**

@@ -5,6 +5,7 @@ import { completeJson } from '../llm/index.js';
 import * as oppyClient from '../llm/oppyClient.js';
 import { extraccionACruda } from '../llm/oppyAdapter.js';
 import { clasificar, hostnameDe } from '../scoring/trust.js';
+import { tituloConfiable } from '../scoring/relevancia.js';
 import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ module: 'normalizer' });
@@ -191,8 +192,14 @@ function aDominio(cruda, documento) {
     );
   }
 
+  const titulo = cruda.titulo.trim();
+  if (!tituloConfiable(titulo)) {
+    log.info('Extraccion con titulo generico; se descarta', { titulo, url: documento.url });
+    return null;
+  }
+
   return {
-    titulo: cruda.titulo.trim(),
+    titulo,
     categoria: cruda.categoria,
     descripcion: cruda.descripcion ?? null,
     elegibilidad: cruda.elegibilidad ?? null,
@@ -203,7 +210,7 @@ function aDominio(cruda, documento) {
     fechaLimite,
     confianza: clasificar({ url: documento.url, fechaLimite }),
     origen: 'descubierta',
-    hashDedupe: calcularHash(cruda.titulo, documento.url)
+    hashDedupe: calcularHash(titulo, documento.url)
   };
 }
 

@@ -86,6 +86,12 @@ export async function findCandidatas({ categorias = null, limit = 40 } = {}) {
      WHERE estado = 'vigente'
        AND (fecha_limite IS NULL OR fecha_limite >= CURRENT_DATE)
        AND ($1::text[] IS NULL OR categoria = ANY($1))
+       AND char_length(trim(titulo)) >= 8
+       AND lower(trim(titulo)) NOT IN (
+         'beca', 'evento', 'curso', 'empleo', 'pasantia', 'pasantía',
+         'voluntariado', 'concurso', 'intercambio', 'financiamiento',
+         'programa', 'oportunidad'
+       )
      ORDER BY
        confianza = 'verificada' DESC,
        fecha_extraida DESC

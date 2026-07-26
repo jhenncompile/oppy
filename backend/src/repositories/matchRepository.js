@@ -174,10 +174,17 @@ export async function pendientesDeCierre({ dias = 3 } = {}) {
   }));
 }
 
-/** IDs ya evaluados: evita gastar tokens puntuando dos veces lo mismo. */
+/** IDs ya evaluados con resultado estable: evita re-gastar tokens. */
 export async function idsYaEvaluados(userId) {
   const { rows } = await query(
-    'SELECT opportunity_id FROM matches WHERE user_id = $1',
+    `SELECT opportunity_id FROM matches
+     WHERE user_id = $1
+       AND (
+         elegible = TRUE
+         OR compatibilidad >= 30
+         OR (razones[1] IS NOT NULL AND razones[1] LIKE 'Filtrado:%')
+         OR (razones[1] IS NOT NULL AND razones[1] LIKE 'Descartada:%')
+       )`,
     [userId]
   );
   return new Set(rows.map((row) => row.opportunity_id));

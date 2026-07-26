@@ -143,3 +143,28 @@ export function ubicacionInferida(oportunidad) {
   };
   return etiquetas[ids[0]] ?? null;
 }
+
+const TITULOS_GENERICOS = new Set([
+  'beca',
+  'evento',
+  'curso',
+  'empleo',
+  'pasantia',
+  'pasantía',
+  'voluntariado',
+  'concurso',
+  'intercambio',
+  'financiamiento',
+  'programa',
+  'oportunidad'
+]);
+
+/**
+ * El LoRA a veces inventa un titulo = categoria ("beca"). Eso no se puede
+ * mostrar ni puntuar con confianza.
+ */
+export function tituloConfiable(titulo) {
+  const t = String(titulo ?? '').trim();
+  if (t.length < 8) return false;
+  return !TITULOS_GENERICOS.has(t.toLowerCase());
+}
