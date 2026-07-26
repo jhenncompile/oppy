@@ -1,6 +1,7 @@
 import { TrustBadge } from './TrustBadge.jsx';
 import { ScoreBar } from './ScoreBar.jsx';
 import { Button } from './Button.jsx';
+import { Seguimiento } from './Seguimiento.jsx';
 
 /** Devuelve dias restantes, o null si no hay fecha limite. */
 function diasRestantes(fechaLimite) {
@@ -31,8 +32,9 @@ function Deadline({ fechaLimite }) {
   );
 }
 
-export function OpportunityCard({ match, onGuardar, onAbrir }) {
+export function OpportunityCard({ match, onGuardar, onAbrir, onSeguimiento }) {
   const { oportunidad } = match;
+  const guardada = match.estado !== 'nuevo' && match.estado !== 'visto';
 
   return (
     <article className="flex flex-col gap-4 rounded-xl border border-line-subtle bg-surface-card p-5 shadow-card">
@@ -93,13 +95,20 @@ export function OpportunityCard({ match, onGuardar, onAbrir }) {
         )}
       </div>
 
-      <footer className="flex items-center justify-end gap-2">
+      {guardada && (
+        <Seguimiento
+          estado={match.estado}
+          onCambiar={(estado) => onSeguimiento(match, estado)}
+        />
+      )}
+
+      <footer className="flex flex-wrap items-center justify-end gap-2">
         <Button
           variante="secundario"
           onClick={() => onGuardar(match)}
-          aria-pressed={match.estado === 'guardado'}
+          aria-pressed={guardada}
         >
-          {match.estado === 'guardado' ? 'Guardada' : 'Guardar'}
+          {guardada ? 'Quitar' : 'Guardar'}
         </Button>
         <Button variante="acento" onClick={() => onAbrir(match)}>
           Ver detalle

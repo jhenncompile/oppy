@@ -7,6 +7,7 @@ import { fuentesActivas, fuentesPorEstrategia, ESTRATEGIAS } from '../src/servic
 import { combinacionesDeBusqueda } from '../src/services/scraping/discovery.js';
 import { extraerJson } from '../src/services/llm/index.js';
 import { calcularHash } from '../src/services/agent/normalizer.js';
+import { mensajeDeOportunidad } from '../src/services/notifications/templates.js';
 import { AppError } from '../src/utils/AppError.js';
 
 const MANANA = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
@@ -182,4 +183,77 @@ test('AppError: conserva status y codigo', () => {
   assert.equal(error.code, 'bad_request');
   assert.deepEqual(error.details, { campo: 'carrera' });
   assert.ok(error instanceof Error);
+});
+
+// ---------------------------------------------------------------------------
+// Notificaciones. El template es puro a proposito: se prueba el texto que le
+// llega a una persona real sin gastar un envio.
+
+const HOY = new Date('2027-03-10T12:00:00Z');
+
+function matchDePrueba(extra = {}) {
+  return {
+    compatibilidad: 92,
+    razones: ['Pide 4to anio o superior, y estas en ese tramo'],
+    oportunidad: {
+      titulo: 'Beca MEXT 2027',
+      fechaLimite: '2027-03-13',
+      linkAplicacion: 'https://bo.emb-japan.go.jp/becas',
+      ...extra
+    }
+  };
+}
+
+test('mensaje: incluye titulo, compatibilidad, razon, plazo y enlace', () => {
+  const texto = mensajeDeOportunidad({
+    perfil: { nombre: 'Maria' },
+    match: matchDePrueba(),
+    hoy: HOY
+  });
+
+  assert.match(texto, /Hola Maria/);
+  assert.match(texto, /Beca MEXT 2027/);
+  assert.match(texto, /92% compatible/);
+  assert.match(texto, /Pide 4to anio o superior/i);
+  assert.match(texto, /Cierra en 3 dias/);
+  assert.match(texto, /https:\/\/bo\.emb-japan\.go\.jp\/becas/);
+});
+
+test('mensaje: sin nombre saluda igual, sin quedar cortado', () => {
+  const texto = mensajeDeOportunidad({ perfil: {}, match: matchDePrueba(), hoy: HOY });
+  assert.match(texto, /^Hola, soy Oppy/);
+});
+
+test('mensaje: el plazo se dice en lenguaje de persona', () => {
+  const hoyMismo = mensajeDeOportunidad({
+    perfil: {},
+    match: matchDePrueba({ fechaLimite: '2027-03-10' }),
+    hoy: HOY
+  });
+  assert.match(hoyMismo, /Cierra hoy/);
+
+  const maniana = mensajeDeOportunidad({
+    perfil: {},
+    match: matchDePrueba({ fechaLimite: '2027-03-11' }),
+    hoy: HOY
+  });
+  assert.match(maniana, /Cierra maniana/);
+});
+
+test('mensaje: sin fecha limite no inventa un plazo', () => {
+  const texto = mensajeDeOportunidad({
+    perfil: {},
+    match: matchDePrueba({ fechaLimite: null }),
+    hoy: HOY
+  });
+  assert.ok(!/Cierra/.test(texto));
+});
+
+test('mensaje: una convocatoria vencida no anuncia un plazo negativo', () => {
+  const texto = mensajeDeOportunidad({
+    perfil: {},
+    match: matchDePrueba({ fechaLimite: '2027-03-01' }),
+    hoy: HOY
+  });
+  assert.ok(!/Cierra/.test(texto));
 });

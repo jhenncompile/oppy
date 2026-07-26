@@ -14,8 +14,13 @@ const consultaSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20)
 });
 
+// El seguimiento avanza: guardado -> preparando -> aplicada -> entrevista ->
+// finalizada. 'descartado' se puede elegir en cualquier momento.
 const estadoSchema = z.object({
-  estado: z.enum(['visto', 'guardado', 'descartado'])
+  estado: z.enum([
+    'visto', 'guardado', 'preparando',
+    'aplicada', 'entrevista', 'finalizada', 'descartado'
+  ])
 });
 
 /** Recomendaciones de una persona, ordenadas por compatibilidad. */
@@ -40,6 +45,8 @@ matchesRouter.patch(
     const match = await matchRepository.actualizarEstado(req.params.id, req.body.estado);
     if (!match) throw AppError.notFound('Recomendacion no encontrada');
 
+    // Solo los dos estados que la telemetria de producto ya modela. Los del
+    // seguimiento posterior son del usuario, no metricas de alcance.
     const tipoEvento = { guardado: 'guardado', descartado: 'descarte' }[req.body.estado];
     if (tipoEvento) {
       await eventRepository.registrar({

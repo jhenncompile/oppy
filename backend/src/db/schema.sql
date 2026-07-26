@@ -29,17 +29,51 @@ CREATE TABLE IF NOT EXISTS orgs (
 CREATE TABLE IF NOT EXISTS users (
   id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre                 TEXT,
+  edad                   INTEGER CHECK (edad IS NULL OR edad BETWEEN 14 AND 100),
   carrera                TEXT NOT NULL,
   nivel_estudios         TEXT NOT NULL,
   intereses              TEXT[] NOT NULL DEFAULT '{}',
   ubicacion              TEXT NOT NULL,
   idiomas                JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+  -- El objetivo es la senal mas fuerte que recibe el agente: acota que buscar
+  -- antes de mirar cualquier otra cosa del perfil.
+  objetivo               TEXT,
+  -- 'experiencia_familiar' entra a proposito: para mucha gente veinte anios
+  -- administrando una casa SON experiencia administrativa, y ningun formulario
+  -- tradicional se lo reconoce.
+  experiencia            TEXT[] NOT NULL DEFAULT '{}',
+  habilidades            TEXT[] NOT NULL DEFAULT '{}',
+  -- Una convocatoria que cumple todos los requisitos pero queda fuera del radio
+  -- o del horario no es una oportunidad. Sin esto el agente no puede saberlo.
+  preferencias           JSONB NOT NULL DEFAULT '{}'::jsonb,
+  restricciones          TEXT[] NOT NULL DEFAULT '{}',
+
+  -- Contacto para las notificaciones. Opcional: sin esto la persona usa Oppy
+  -- igual, solo que no recibe avisos.
+  email                  TEXT,
+  telefono               TEXT,
+  acepta_notificaciones  BOOLEAN NOT NULL DEFAULT FALSE,
+
   org_id                 UUID REFERENCES orgs(id) ON DELETE SET NULL,
   -- Opt-in explicito para el matching inverso. Por defecto, invisible.
   visible_para_empresas  BOOLEAN NOT NULL DEFAULT FALSE,
   created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- --- Migracion de `users` --------------------------------------------------
+-- Ver la nota de `matches` mas abajo: los CREATE son no-ops sobre una base que
+-- ya existe, asi que todo cambio posterior vive en un ALTER idempotente.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS edad INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS objetivo TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS experiencia TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS habilidades TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS preferencias JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS restricciones TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS telefono TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS acepta_notificaciones BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- ---------------------------------------------------------------------------
 -- Indice global de oportunidades.
@@ -49,7 +83,8 @@ CREATE TABLE IF NOT EXISTS opportunities (
   titulo            TEXT NOT NULL,
   categoria         TEXT NOT NULL CHECK (categoria IN (
                       'beca', 'pasantia', 'empleo', 'intercambio',
-                      'concurso', 'financiamiento', 'curso'
+                      'concurso', 'financiamiento', 'curso',
+                      'voluntariado', 'evento', 'programa_social'
                     )),
   descripcion       TEXT,
   elegibilidad      TEXT,
@@ -105,8 +140,14 @@ CREATE TABLE IF NOT EXISTS matches (
   razones         TEXT[] NOT NULL DEFAULT '{}',
   brechas         TEXT[] NOT NULL DEFAULT '{}',
   elegible        BOOLEAN NOT NULL DEFAULT TRUE,
+  -- El estado avanza: guardada -> preparando -> aplicada -> entrevista ->
+  -- finalizada. 'descartado' se puede elegir en cualquier momento y es
+  -- terminal: si la persona ya dijo que no, no se le vuelve a ofrecer.
   estado          TEXT NOT NULL DEFAULT 'nuevo'
-                    CHECK (estado IN ('nuevo', 'visto', 'guardado', 'descartado')),
+                    CHECK (estado IN (
+                      'nuevo', 'visto', 'guardado', 'preparando',
+                      'aplicada', 'entrevista', 'finalizada', 'descartado'
+                    )),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, opportunity_id)
@@ -153,6 +194,24 @@ END $$;
 
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS razones TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS brechas TEXT[] NOT NULL DEFAULT '{}';
+
+-- Estados de seguimiento. Se reemplaza el CHECK entero porque ampliarlo no se
+-- puede expresar de otra forma.
+ALTER TABLE matches DROP CONSTRAINT IF EXISTS matches_estado_check;
+ALTER TABLE matches ADD CONSTRAINT matches_estado_check
+  CHECK (estado IN (
+    'nuevo', 'visto', 'guardado', 'preparando',
+    'aplicada', 'entrevista', 'finalizada', 'descartado'
+  ));
+
+-- Categorias nuevas: voluntariado, evento y programa social.
+ALTER TABLE opportunities DROP CONSTRAINT IF EXISTS opportunities_categoria_check;
+ALTER TABLE opportunities ADD CONSTRAINT opportunities_categoria_check
+  CHECK (categoria IN (
+    'beca', 'pasantia', 'empleo', 'intercambio',
+    'concurso', 'financiamiento', 'curso',
+    'voluntariado', 'evento', 'programa_social'
+  ));
 
 CREATE INDEX IF NOT EXISTS idx_matches_ranking
   ON matches (user_id, compatibilidad DESC);
@@ -205,3 +264,29 @@ CREATE TABLE IF NOT EXISTS agent_runs (
 
 CREATE INDEX IF NOT EXISTS idx_agent_runs_recientes
   ON agent_runs (started_at DESC);
+
+-- ---------------------------------------------------------------------------
+-- Notificaciones enviadas.
+--
+-- El UNIQUE es el mecanismo de idempotencia, no un detalle: sin el, cada
+-- corrida del cron reenviaria las mismas oportunidades y Oppy pasaria de
+-- acompaniante a spam en un dia.
+--
+-- Los fallos tambien se guardan. Un envio que no salio es informacion: sin
+-- registrarlo no hay forma de saber si el canal esta caido o si nunca se
+-- intento.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS notificaciones (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  opportunity_id  UUID NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+  canal           TEXT,
+  estado          TEXT NOT NULL CHECK (estado IN ('enviado', 'fallido')),
+  mensaje_id      TEXT,
+  error           TEXT,
+  enviado_en      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, opportunity_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notificaciones_recientes
+  ON notificaciones (user_id, enviado_en DESC);

@@ -62,10 +62,12 @@ export default function App() {
     if (perfil) iniciar(perfil.id);
   }, [perfil, iniciar]);
 
-  const guardar = async (match) => {
-    const nuevoEstado = match.estado === 'guardado' ? 'visto' : 'guardado';
-
-    // Optimista: la interfaz responde ya, y si el servidor falla se revierte.
+  /**
+   * Optimista: la interfaz responde ya, y si el servidor falla se revierte.
+   * En una lista que se refresca sola, esperar la respuesta se siente como que
+   * el click no hizo nada.
+   */
+  const cambiarEstado = async (match, nuevoEstado) => {
     setMatches((previos) =>
       previos.map((m) => (m.id === match.id ? { ...m, estado: nuevoEstado } : m))
     );
@@ -77,6 +79,11 @@ export default function App() {
         previos.map((m) => (m.id === match.id ? { ...m, estado: match.estado } : m))
       );
     }
+  };
+
+  const guardar = (match) => {
+    const enSeguimiento = match.estado !== 'nuevo' && match.estado !== 'visto';
+    return cambiarEstado(match, enSeguimiento ? 'visto' : 'guardado');
   };
 
   const trabajando = estado === 'en_curso';
@@ -129,6 +136,7 @@ export default function App() {
               matches={matches}
               perfil={perfil}
               onGuardar={guardar}
+              onSeguimiento={cambiarEstado}
               onReintentar={reintentar}
             />
           </Panel>

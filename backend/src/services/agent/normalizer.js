@@ -8,7 +8,8 @@ const log = logger.child({ module: 'normalizer' });
 
 export const CATEGORIAS = [
   'beca', 'pasantia', 'empleo', 'intercambio',
-  'concurso', 'financiamiento', 'curso'
+  'concurso', 'financiamiento', 'curso',
+  'voluntariado', 'evento', 'programa_social'
 ];
 
 const oportunidadSchema = z.object({

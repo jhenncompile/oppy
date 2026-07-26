@@ -99,6 +99,9 @@ Analista ── razona elegibilidad real → compatibilidad + razones + brechas
       │
       ▼
 matches (por persona) ──► Dashboard + stream de progreso en vivo (SSE)
+      │
+      ▼
+Notificaciones ── avisa por [Zavu](https://zavu.dev) lo que supera el umbral
 ```
 
 **La decision estructural**: el indice es **compartido**. El cron descubre una
@@ -153,6 +156,41 @@ interfaz y **nunca** altera su puntaje ni su nivel de confianza.
 ejecutan el mismo pipeline, asi la corrida autonoma no puede divergir de lo que
 se demuestra en vivo.
 
+## Notificaciones con Zavu
+
+Cuando el agente encuentra algo que supera el umbral de compatibilidad, avisa
+solo — desde el cron, no desde un boton. El canal lo resuelve
+**[Zavu](https://zavu.dev)** ([docs](https://docs.zavu.dev)), la API unificada
+de mensajeria: elige SMS, Telegram, Email o Voz segun el formato del
+destinatario y reintenta por otro si el primero falla.
+
+No se fuerza un canal a mano a proposito. El fallback automatico de Zavu da mas
+entregabilidad que cualquier logica de seleccion propia, y con menos codigo.
+
+```
+services/notifications/
+  zavu.js        cliente + envio, devuelve un resultado normalizado
+  templates.js   redaccion del mensaje — funcion pura, testeable sin red
+jobs/
+  notificacionesJob.js   filtra, envia y registra
+```
+
+Tres filtros antes de escribirle a alguien: consentimiento explicito y contacto
+cargado, compatibilidad sobre `NOTIF_MATCH_THRESHOLD`, y que no se le haya
+avisado antes de esa misma oportunidad. El `UNIQUE (user_id, opportunity_id)` de
+la tabla `notificaciones` es lo que garantiza lo ultimo — sin eso, cada corrida
+del cron reenviaria lo mismo y Oppy pasaria de acompaniante a spam en un dia.
+
+Los fallos tambien se guardan: un envio que no salio es informacion. Y nada de
+esto tumba una corrida — sin `ZAVUDEV_API_KEY` el modulo se degrada solo, igual
+que Exa y Firecrawl.
+
+Prueba manual antes de conectar nada:
+
+```bash
+cd backend && node scripts/test-zavu.js tu@correo.com
+```
+
 ## API
 
 | Metodo | Ruta | Que hace |
@@ -168,6 +206,10 @@ se demuestra en vivo.
 | `POST` | `/api/events` | Telemetria de producto |
 | `GET` | `/api/insights/skills` | Habilidades mas pedidas — inteligencia de oportunidades |
 | `GET` | `/health` | Estado y capacidades activas |
+
+El perfil acepta ademas `objetivo`, `experiencia[]`, `habilidades[]`,
+`restricciones[]` y contacto (`email` / `telefono`) con `aceptaNotificaciones`.
+Todo opcional salvo carrera, nivel de estudios y ubicacion.
 
 ## Pruebas
 

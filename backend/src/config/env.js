@@ -22,6 +22,13 @@ const schema = z.object({
   EXA_API_KEY: z.string().default(''),
   FIRECRAWL_API_KEY: z.string().default(''),
 
+  // Zavu — mensajeria unificada para las notificaciones. https://zavu.dev
+  ZAVUDEV_API_KEY: z.string().default(''),
+  // Por debajo de este puntaje no se molesta a nadie: una notificacion que no
+  // valia la pena entrena a la persona a ignorar las siguientes.
+  NOTIF_MATCH_THRESHOLD: z.coerce.number().int().min(0).max(100).default(80),
+  NOTIF_MAX_POR_USUARIO: z.coerce.number().int().positive().default(3),
+
   EXA_RESULTS_PER_QUERY: z.coerce.number().int().positive().default(8),
   MAX_SCORING_PER_RUN: z.coerce.number().int().positive().default(40),
 
@@ -55,6 +62,7 @@ export const env = {
   /** Las capacidades opcionales se degradan solas si falta la key. */
   features: {
     exa: raw.EXA_API_KEY.length > 0,
-    firecrawl: raw.FIRECRAWL_API_KEY.length > 0
+    firecrawl: raw.FIRECRAWL_API_KEY.length > 0,
+    zavu: raw.ZAVUDEV_API_KEY.length > 0
   }
 };

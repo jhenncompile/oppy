@@ -87,6 +87,7 @@ otro nombre — la columna de la derecha evita reescribir lo construido.
 | 5 | **Recommendation** | Cuáles mostrar y en qué orden | `opportunityRepository.findCandidatas` | ◐ pre-filtra en SQL; falta la priorización final |
 | 6 | **Follow-up** | Qué recordar y cuándo | — | ○ |
 | 7 | **Growth** | Qué patrón hay en lo descartado, y qué curso lo cierra | — | ○ |
+| 8 | **Notificador** | A quién avisar y de qué, sin volverse spam | `jobs/notificacionesJob.js` + `services/notifications/` | ✅ |
 
 El rol 0 no estaba en la propuesta original pero ya está construido y es el que
 sostiene el argumento del track: **las queries no están escritas en el código**,
@@ -171,6 +172,7 @@ lo que se le pide a un agente autónomo.
 | `daily_scan` | Cron | Descubre para todos y alimenta el índice | ✅ |
 | `opportunity_saved` | El usuario guardó algo | Inicia seguimiento y busca similares | ○ |
 | `deadline_near` | Se acerca un plazo | Genera recordatorio | ○ |
+| `match_alto` | Un match supera `NOTIF_MATCH_THRESHOLD` | Avisa por Zavu, con fallback de canal | ✅ `jobs/notificacionesJob.js` |
 | `opportunity_closed` | Venció o cerró | Deja de recomendarla y busca alternativas | ◐ existe `marcarVencidas()`; falta la alternativa |
 
 `profile_updated` es el que más valor da por línea escrita: como descubrimiento

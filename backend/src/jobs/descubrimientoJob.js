@@ -2,6 +2,7 @@ import { logger } from '../utils/logger.js';
 import { ejecutar } from '../services/agent/pipeline.js';
 import * as userRepository from '../repositories/userRepository.js';
 import * as opportunityRepository from '../repositories/opportunityRepository.js';
+import { correrNotificaciones } from './notificacionesJob.js';
 
 const log = logger.child({ module: 'job/descubrimiento' });
 
@@ -44,7 +45,16 @@ export async function correrDescubrimiento({ maxPerfiles = 5 } = {}) {
     }
   }
 
-  const resumen = { perfiles: perfiles.length, nuevas, ms: Date.now() - inicio };
+  // Las notificaciones van al final, cuando el indice y los matches ya estan
+  // frescos: avisar antes de puntuar seria avisar de lo de ayer.
+  const notificaciones = await correrNotificaciones();
+
+  const resumen = {
+    perfiles: perfiles.length,
+    nuevas,
+    notificadas: notificaciones.enviadas,
+    ms: Date.now() - inicio
+  };
   log.info('Descubrimiento autonomo completado', resumen);
   return resumen;
 }

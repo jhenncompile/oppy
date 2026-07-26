@@ -20,7 +20,7 @@ function EstadoVacio({ onReintentar }) {
   );
 }
 
-export function Results({ matches, perfil, onGuardar, onReintentar }) {
+export function Results({ matches, perfil, onGuardar, onSeguimiento, onReintentar }) {
   // Una impresion por oportunidad y por sesion.
   //
   // La lista se refresca mientras el agente sigue corriendo, asi que sin este
@@ -63,6 +63,7 @@ export function Results({ matches, perfil, onGuardar, onReintentar }) {
             key={match.id}
             match={match}
             onGuardar={onGuardar}
+            onSeguimiento={onSeguimiento}
             onAbrir={abrir}
           />
         ))}

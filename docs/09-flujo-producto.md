@@ -207,21 +207,23 @@ acceso, la interfaz no puede abrir otra.
 
 Estado: **✅ existe** · **◐ parcial** · **○ falta**.
 
-| Área | Hoy | Este documento pide | Δ |
-|---|---|---|---|
-| Perfil | `carrera`, `nivel_estudios`, `intereses[]`, `ubicacion`, `idiomas` | + `objetivo`, `experiencia[]`, `habilidades[]`, `preferencias{}`, `restricciones[]`, `edad`, `idioma` | ○ migración de `users` |
-| Categorías | beca, pasantía, empleo, intercambio, concurso, financiamiento, curso | + voluntariado, evento *(hackathons, conferencias)*, programa social | ○ ampliar enum y `CHECK` |
-| Seguimiento | `nuevo`, `visto`, `guardado`, `descartado` | + `preparando`, `aplicada`, `entrevista`, `finalizada` | ○ ampliar `CHECK` (aditivo) |
-| Razones y brechas | prosa en un solo campo | `razones[]` + `brechas[]` | ✅ hecho — ver `schema.sql` |
-| Checklist | — | Ítems por oportunidad, marcables | ○ tabla nueva |
-| Calendario | `fecha_limite` en el índice | Vista agregada + recordatorios | ◐ el dato está; falta la vista |
-| Tarjeta | título, categoría, confianza, score, por qué | + organización, modalidad | ◐ `fuente_nombre` existe; `modalidad` no |
-| Dashboard proactivo | Se dispara con un botón | Se actualiza solo | ◐ el cron ya existe; falta que el tablero sea la entrada |
+| Área | Δ | Estado |
+|---|---|---|
+| Perfil | + `objetivo`, `experiencia[]`, `habilidades[]`, `preferencias{}`, `restricciones[]`, `edad` | ✅ esquema, API y onboarding |
+| Contacto | + `email`, `telefono`, `acepta_notificaciones` con consentimiento auditable | ✅ |
+| Categorías | + voluntariado, evento, programa social | ✅ |
+| Seguimiento | + `preparando`, `aplicada`, `entrevista`, `finalizada` | ✅ esquema, API y tarjeta |
+| Razones y brechas | prosa → `razones[]` + `brechas[]` | ✅ |
+| Notificaciones | Aviso automático por Zavu desde el cron | ✅ ver [`README`](../README.md) |
+| Checklist | Ítems por oportunidad, marcables | ○ tabla nueva |
+| Calendario | Vista agregada + recordatorios | ◐ el dato está; falta la vista |
+| Tarjeta | + organización, modalidad | ◐ `fuente_nombre` existe; `modalidad` no |
+| Dashboard proactivo | Que el tablero sea la entrada, no el formulario | ◐ el cron ya existe |
 
-**Los que quedan rompen contratos congelados** y por lo tanto necesitan spec
-antes de código, según [`CLAUDE.md`](../CLAUDE.md): el esquema de perfil, la
-`modalidad` de la oportunidad y el enum de categorías.
+Todo lo aplicado vive en migraciones idempotentes dentro de
+`backend/src/db/schema.sql`, no en un `CREATE TABLE` reescrito: el esquema se
+puede aplicar sobre una base con datos sin perder nada. La prosa que existía en
+`por_que_calza` se conserva como primer elemento de `razones[]`.
 
-El renombre a `compatibilidad` / `razones[]` y el agregado de `brechas[]` ya
-están aplicados, con migración idempotente en `backend/src/db/schema.sql`: el
-texto que existía se conserva como primer elemento del arreglo.
+Lo que queda pendiente — checklist, calendario y `modalidad` — no bloquea la
+demo y ninguno obliga a migrar lo ya cargado.
