@@ -87,13 +87,21 @@ async function evaluarConOppy(perfil, oportunidad) {
   };
 }
 
-/** Ajuste deterministico con senales de usuario (guardado / descartado). */
+/** Ajuste deterministico con senales de usuario (guardar / no me interesa / mala info). */
 function aplicarSenalesFeedback(evaluacion, feedback, oportunidad) {
   if (!feedback) return evaluacion;
 
   let score = evaluacion.compatibilidad;
+  let elegible = evaluacion.elegible;
   const razones = [...evaluacion.razones];
   const cat = oportunidad.categoria;
+  const titulo = String(oportunidad.titulo ?? '');
+
+  if (feedback.titulosMalaInfo?.some((t) => t === titulo)) {
+    score = Math.min(score, 15);
+    elegible = false;
+    razones.push('Ajustado: marcaste info similar como incorrecta');
+  }
 
   if (feedback.categoriasEvitadas?.includes(cat)) {
     score = Math.max(0, score - 25);
@@ -111,10 +119,14 @@ function aplicarSenalesFeedback(evaluacion, feedback, oportunidad) {
     score = Math.min(100, score + Math.min(12, overlap.length * 4));
   }
 
+  if (feedback.comentariosMalaInfo?.length) {
+    razones.push('Teniendo en cuenta tus correcciones recientes');
+  }
+
   return {
     ...evaluacion,
     compatibilidad: score,
-    elegible: evaluacion.elegible && score >= 30,
+    elegible: elegible && score >= 30,
     razones: razones.slice(0, 5)
   };
 }

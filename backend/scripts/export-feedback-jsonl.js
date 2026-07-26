@@ -12,8 +12,8 @@ import { query, closePool } from '../src/db/index.js';
 const outPath = process.argv[2] || null;
 
 const { rows } = await query(
-  `SELECT m.estado, m.compatibilidad, m.razones, m.brechas, m.elegible,
-          m.updated_at,
+  `SELECT m.estado, m.tipo_feedback, m.comentario_feedback, m.compatibilidad,
+          m.razones, m.brechas, m.elegible, m.updated_at,
           u.carrera, u.habilidades, u.objetivos, u.ubicacion, u.nivel_estudios,
           o.titulo, o.categoria, o.skills, o.elegibilidad, o.descripcion
    FROM matches m
@@ -28,9 +28,16 @@ const { rows } = await query(
 );
 
 const lineas = rows.map((row) => {
+  const esMalaInfo = row.estado === 'descartado' && row.tipo_feedback === 'mala_info';
   const label =
     row.estado === 'descartado'
-      ? { match: 'bajo', score: Math.min(30, row.compatibilidad), reason: 'Usuario descartó' }
+      ? {
+          match: 'bajo',
+          score: Math.min(30, row.compatibilidad),
+          reason: esMalaInfo
+            ? (row.comentario_feedback || 'Usuario: información incorrecta')
+            : 'Usuario descartó (no me interesa)'
+        }
       : {
           match: row.compatibilidad >= 70 ? 'alto' : 'medio',
           score: row.compatibilidad,
@@ -56,7 +63,9 @@ const lineas = rows.map((row) => {
         requirements: row.elegibilidad ? [row.elegibilidad] : [],
         description: row.descripcion
       },
-      user_feedback_estado: row.estado
+      user_feedback_estado: row.estado,
+      user_feedback_tipo: row.tipo_feedback,
+      user_feedback_comentario: row.comentario_feedback
     },
     output: label,
     meta: { source: 'oppy_user_feedback', updated_at: row.updated_at }

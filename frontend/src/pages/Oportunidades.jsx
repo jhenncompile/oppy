@@ -75,7 +75,7 @@ function Vacio({ onBuscar }) {
 
 export function Oportunidades() {
   const { perfil } = usePerfil();
-  const { matches, cargando, cambiarEstado } = useMatchesCompartidos();
+  const { matches, cargando, cambiarEstado, reportarMalaInfo } = useMatchesCompartidos();
   const navegar = useNavigate();
 
   const [categoria, setCategoria] = useState('todas');
@@ -186,7 +186,7 @@ export function Oportunidades() {
                 match={match}
                 onGuardar={guardar}
                 onSeguimiento={cambiarEstado}
-
+                onMalaInfo={reportarMalaInfo}
               />
             ))}
           </div>

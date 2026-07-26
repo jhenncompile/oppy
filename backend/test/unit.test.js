@@ -28,6 +28,7 @@ import {
   planDeRespaldo,
   planDesdePerfil
 } from '../src/services/agent/orchestrator.js';
+import { evaluarRelevancia } from '../src/services/scoring/relevancia.js';
 
 const MANANA = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 const AYER = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
@@ -596,4 +597,44 @@ test('confianza: acepta un Date de Postgres igual que una cadena', () => {
     clasificar({ url: 'https://bo.usembassy.gov/x', fechaLimite: anteayer }),
     CONFIANZA.DESACTUALIZADA
   );
+});
+
+test('relevancia: rechaza fecha vencida', () => {
+  const r = evaluarRelevancia(
+    { ubicacion: 'La Paz' },
+    { titulo: 'Beca', fechaLimite: '2020-01-01' }
+  );
+  assert.equal(r.ok, false);
+  assert.equal(r.codigo, 'fecha_vencida');
+});
+
+test('relevancia: rechaza otra ciudad si el perfil pide una concreta', () => {
+  const r = evaluarRelevancia(
+    { ubicacion: 'La Paz, Bolivia' },
+    {
+      titulo: 'Beca UAGRM Santa Cruz',
+      elegibilidad: 'Residentes de Santa Cruz',
+      fechaLimite: '2027-12-01'
+    }
+  );
+  assert.equal(r.ok, false);
+  assert.equal(r.codigo, 'ubicacion');
+});
+
+test('relevancia: acepta remoto / nacional aunque mencione otra ciudad no', () => {
+  const okRemoto = evaluarRelevancia(
+    { ubicacion: 'La Paz' },
+    {
+      titulo: 'Curso remoto Bolivia',
+      descripcion: 'Modalidad online para todo el pais',
+      fechaLimite: '2027-12-01'
+    }
+  );
+  assert.equal(okRemoto.ok, true);
+
+  const okMisma = evaluarRelevancia(
+    { ubicacion: 'La Paz' },
+    { titulo: 'Beca en La Paz', fechaLimite: '2027-12-01' }
+  );
+  assert.equal(okMisma.ok, true);
 });

@@ -181,6 +181,10 @@ function construirPrompt(documento, categorias) {
 
 function aDominio(cruda, documento) {
   let fechaLimite = normalizarFecha(cruda.fecha_limite);
+  // Si el modelo inventa una fecha ya pasada, no la usamos como vigente.
+  if (fechaLimite && !fechaEsFuturaOHoy(fechaLimite)) {
+    fechaLimite = null;
+  }
   if (!fechaLimite) {
     fechaLimite = extraerFechaDelTexto(
       [documento.titulo, documento.texto?.slice(0, 3500)].filter(Boolean).join('\n')
@@ -238,6 +242,14 @@ function normalizarFecha(valor) {
   const fecha = new Date(valor);
   if (Number.isNaN(fecha.getTime())) return null;
   return fecha.toISOString().slice(0, 10);
+}
+
+function fechaEsFuturaOHoy(iso) {
+  const fecha = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(fecha.getTime())) return false;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  return fecha >= hoy;
 }
 
 const MESES = {

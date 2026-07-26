@@ -10,7 +10,7 @@ export const matchesRouter = Router();
 
 const consultaSchema = z.object({
   userId: z.string().uuid(),
-  minScore: z.coerce.number().int().min(0).max(100).default(0),
+  minScore: z.coerce.number().int().min(0).max(100).default(30),
   limit: z.coerce.number().int().min(1).max(50).default(20)
 });
 
@@ -20,7 +20,9 @@ const estadoSchema = z.object({
   estado: z.enum([
     'visto', 'guardado', 'preparando',
     'aplicada', 'entrevista', 'finalizada', 'descartado'
-  ])
+  ]),
+  tipoFeedback: z.enum(['no_me_interesa', 'mala_info']).nullish(),
+  comentario: z.string().max(500).nullish()
 });
 
 /** Recomendaciones de una persona, ordenadas por compatibilidad. */
@@ -35,25 +37,39 @@ matchesRouter.get(
 );
 
 /**
- * Guardar o descartar. Ademas de actualizar el match, deja el evento: sin esa
- * telemetria los reportes de alcance para organizaciones no tienen que medir.
+ * Guardar, avanzar seguimiento o descartar.
+ * Descarte con tipoFeedback=mala_info alimenta al agente distinto que "no me interesa".
  */
 matchesRouter.patch(
   '/:id',
   validarParamUuid(),
   validarBody(estadoSchema),
   asyncHandler(async (req, res) => {
-    const match = await matchRepository.actualizarEstado(req.params.id, req.body.estado);
+    const { estado, tipoFeedback, comentario } = req.body;
+    const match = await matchRepository.actualizarFeedback(req.params.id, {
+      estado,
+      tipoFeedback: tipoFeedback ?? null,
+      comentario: comentario ?? null
+    });
     if (!match) throw AppError.notFound('Recomendacion no encontrada');
 
-    // Solo los dos estados que la telemetria de producto ya modela. Los del
-    // seguimiento posterior son del usuario, no metricas de alcance.
-    const tipoEvento = { guardado: 'guardado', descartado: 'descarte' }[req.body.estado];
-    if (tipoEvento) {
+    if (estado === 'guardado') {
       await eventRepository.registrar({
         userId: match.userId,
         opportunityId: match.oportunidad.id,
-        tipo: tipoEvento
+        tipo: 'guardado'
+      });
+    } else if (estado === 'descartado' && tipoFeedback === 'mala_info') {
+      await eventRepository.registrar({
+        userId: match.userId,
+        opportunityId: match.oportunidad.id,
+        tipo: 'mala_info'
+      });
+    } else if (estado === 'descartado') {
+      await eventRepository.registrar({
+        userId: match.userId,
+        opportunityId: match.oportunidad.id,
+        tipo: 'descarte'
       });
     }
 

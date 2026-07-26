@@ -9,7 +9,7 @@ export const eventsRouter = Router();
 const eventoSchema = z.object({
   userId: z.string().uuid().nullish(),
   opportunityId: z.string().uuid(),
-  tipo: z.enum(['impresion', 'clic', 'guardado', 'descarte'])
+  tipo: z.enum(['impresion', 'clic', 'guardado', 'descarte', 'mala_info'])
 });
 
 /**

@@ -10,6 +10,8 @@ function toDomain(row) {
     brechas: row.brechas,
     elegible: row.elegible,
     estado: row.estado,
+    tipoFeedback: row.tipo_feedback ?? null,
+    comentarioFeedback: row.comentario_feedback ?? null,
     createdAt: row.created_at,
     oportunidad: row.titulo
       ? {
@@ -65,13 +67,15 @@ export async function upsert(match) {
  * Los descartados no vuelven a aparecer: si la persona ya dijo que no, se
  * respeta. Es la base del feedback loop.
  */
-export async function findByUser(userId, { minScore = 0, limit = 20 } = {}) {
+export async function findByUser(userId, { minScore = 30, limit = 20 } = {}) {
   const { rows } = await query(
     `${SELECT_CON_OPORTUNIDAD}
      WHERE m.user_id = $1
        AND m.estado <> 'descartado'
+       AND m.elegible = TRUE
        AND m.compatibilidad >= $2
        AND o.estado = 'vigente'
+       AND (o.fecha_limite IS NULL OR o.fecha_limite >= CURRENT_DATE)
      ORDER BY m.compatibilidad DESC, o.fecha_limite ASC NULLS LAST
      LIMIT $3`,
     [userId, minScore, limit]
@@ -80,11 +84,32 @@ export async function findByUser(userId, { minScore = 0, limit = 20 } = {}) {
 }
 
 export async function actualizarEstado(matchId, estado) {
+  return actualizarFeedback(matchId, { estado });
+}
+
+/**
+ * Cambia estado y, si es descarte, el tipo de senal al agente.
+ * @param {string} matchId
+ * @param {{ estado: string, tipoFeedback?: 'no_me_interesa'|'mala_info'|null, comentario?: string|null }} payload
+ */
+export async function actualizarFeedback(matchId, { estado, tipoFeedback = null, comentario = null }) {
+  const esDescarte = estado === 'descartado';
+  const tipo = esDescarte
+    ? (tipoFeedback === 'mala_info' ? 'mala_info' : 'no_me_interesa')
+    : null;
+  const nota = esDescarte && comentario
+    ? String(comentario).trim().slice(0, 500) || null
+    : null;
+
   const row = await queryOne(
-    `UPDATE matches SET estado = $2, updated_at = now()
+    `UPDATE matches
+     SET estado = $2,
+         tipo_feedback = $3,
+         comentario_feedback = $4,
+         updated_at = now()
      WHERE id = $1
      RETURNING *`,
-    [matchId, estado]
+    [matchId, estado, tipo, nota]
   );
   return toDomain(row);
 }
@@ -160,11 +185,14 @@ export async function idsYaEvaluados(userId) {
 
 /**
  * Senales de usuario para alimentar al agente Oppy en el proximo match.
- * Preferidas = guardado / en seguimiento; evitadas = descartado.
+ * Preferidas = guardado / en seguimiento.
+ * no_me_interesa = evita categorias/titulos similares.
+ * mala_info = comentarios y titulos que el modelo invento o desalineo.
  */
 export async function resumenFeedback(userId, { limit = 30 } = {}) {
   const { rows } = await query(
-    `SELECT m.estado, o.categoria, o.skills, o.titulo
+    `SELECT m.estado, m.tipo_feedback, m.comentario_feedback,
+            o.categoria, o.skills, o.titulo
      FROM matches m
      JOIN opportunities o ON o.id = m.opportunity_id
      WHERE m.user_id = $1
@@ -178,15 +206,24 @@ export async function resumenFeedback(userId, { limit = 30 } = {}) {
   );
 
   const positivos = rows.filter((row) => row.estado !== 'descartado');
-  const negativos = rows.filter((row) => row.estado === 'descartado');
+  const descartados = rows.filter((row) => row.estado === 'descartado');
+  // Legacy sin tipo_feedback = "no me interesa".
+  const noMeInteresa = descartados.filter(
+    (row) => row.tipo_feedback !== 'mala_info'
+  );
+  const malaInfo = descartados.filter((row) => row.tipo_feedback === 'mala_info');
 
   const uniq = (valores) => [...new Set(valores.filter(Boolean))];
 
   return {
     skillsPreferidas: uniq(positivos.flatMap((row) => row.skills ?? [])).slice(0, 15),
     categoriasPreferidas: uniq(positivos.map((row) => row.categoria)).slice(0, 6),
-    categoriasEvitadas: uniq(negativos.map((row) => row.categoria)).slice(0, 6),
+    categoriasEvitadas: uniq(noMeInteresa.map((row) => row.categoria)).slice(0, 6),
     titulosPreferidos: uniq(positivos.map((row) => row.titulo)).slice(0, 5),
-    titulosEvitados: uniq(negativos.map((row) => row.titulo)).slice(0, 5)
+    titulosEvitados: uniq(noMeInteresa.map((row) => row.titulo)).slice(0, 5),
+    titulosMalaInfo: uniq(malaInfo.map((row) => row.titulo)).slice(0, 8),
+    comentariosMalaInfo: uniq(
+      malaInfo.map((row) => row.comentario_feedback).filter(Boolean)
+    ).slice(0, 10)
   };
 }

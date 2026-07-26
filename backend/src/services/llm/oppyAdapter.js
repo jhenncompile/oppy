@@ -4,6 +4,8 @@
  * que no entrenó y el pipeline recibe formas que no persiste.
  */
 
+import { ubicacionInferida } from '../scoring/relevancia.js';
+
 const TIPO_A_CATEGORIA = {
   beca: 'beca',
   pasantia: 'pasantia',
@@ -43,7 +45,9 @@ export function perfilAOppy(perfil) {
     ...(feedback?.categoriasPreferidas ?? []).map((c) => `prefiere_${c}`),
     ...(feedback?.categoriasEvitadas ?? []).map((c) => `evitar_${c}`),
     ...(feedback?.titulosPreferidos ?? []).map((t) => `gusto:${String(t).slice(0, 60)}`),
-    ...(feedback?.titulosEvitados ?? []).map((t) => `evitar:${String(t).slice(0, 60)}`)
+    ...(feedback?.titulosEvitados ?? []).map((t) => `evitar:${String(t).slice(0, 60)}`),
+    ...(feedback?.titulosMalaInfo ?? []).map((t) => `mala_info:${String(t).slice(0, 60)}`),
+    ...(feedback?.comentariosMalaInfo ?? []).map((c) => `feedback_usuario:${String(c).slice(0, 80)}`)
   ];
 
   return {
@@ -68,7 +72,7 @@ export function oportunidadAOppy(oportunidad) {
     type: CATEGORIA_A_TIPO[oportunidad.categoria] ?? 'empleo_junior',
     area: oportunidad.descripcion?.slice(0, 120) ?? oportunidad.titulo ?? null,
     skills: oportunidad.skills ?? [],
-    location: null,
+    location: ubicacionInferida(oportunidad) ?? oportunidad.ubicacion ?? null,
     requirements: oportunidad.elegibilidad
       ? [oportunidad.elegibilidad]
       : [],

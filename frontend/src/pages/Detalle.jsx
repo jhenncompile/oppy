@@ -173,7 +173,7 @@ export function Detalle() {
   };
 
   const descartar = async () => {
-    await cambiarEstado(match, 'descartado');
+    await cambiarEstado(match, 'descartado', { tipoFeedback: 'no_me_interesa' });
     navegar('/oportunidades');
   };
 

@@ -3,6 +3,7 @@ import { logger } from '../../utils/logger.js';
 import { mapExitosos } from '../../utils/concurrency.js';
 import { descubrir } from '../scraping/discovery.js';
 import { evaluarSeguro } from '../scoring/matcher.js';
+import { evaluarRelevancia } from '../scoring/relevancia.js';
 import * as opportunityRepository from '../../repositories/opportunityRepository.js';
 import * as matchRepository from '../../repositories/matchRepository.js';
 import * as agentRunRepository from '../../repositories/agentRunRepository.js';
@@ -303,6 +304,22 @@ async function puntuarParaPerfil(perfil, categorias, evaluador) {
     pendientes,
     CONCURRENCIA_SCORING,
     async (oportunidad) => {
+      const gate = evaluarRelevancia(perfilConSenales, oportunidad);
+      if (!gate.ok) {
+        log.info('Candidata filtrada (relevancia)', {
+          oportunidadId: oportunidad.id,
+          codigo: gate.codigo
+        });
+        return matchRepository.upsert({
+          userId: perfil.id,
+          opportunityId: oportunidad.id,
+          compatibilidad: 0,
+          elegible: false,
+          razones: [gate.motivo],
+          brechas: []
+        });
+      }
+
       const evaluacion = await evaluador(perfilConSenales, oportunidad);
       if (!evaluacion) return null;
 

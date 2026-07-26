@@ -257,6 +257,17 @@ END $$;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS razones TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS brechas TEXT[] NOT NULL DEFAULT '{}';
 
+-- Distingue "no me interesa" (preferencia) de "mala info" (alucinacion /
+-- ciudad / fecha). Ambos dejan estado=descartado, pero el agente aprende distinto.
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS tipo_feedback TEXT;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS comentario_feedback TEXT;
+ALTER TABLE matches DROP CONSTRAINT IF EXISTS matches_tipo_feedback_check;
+ALTER TABLE matches ADD CONSTRAINT matches_tipo_feedback_check
+  CHECK (
+    tipo_feedback IS NULL
+    OR tipo_feedback IN ('no_me_interesa', 'mala_info')
+  );
+
 -- Estados de seguimiento. Se reemplaza el CHECK entero porque ampliarlo no se
 -- puede expresar de otra forma.
 ALTER TABLE matches DROP CONSTRAINT IF EXISTS matches_estado_check;
@@ -342,9 +353,14 @@ CREATE TABLE IF NOT EXISTS events (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID REFERENCES users(id) ON DELETE SET NULL,
   opportunity_id  UUID REFERENCES opportunities(id) ON DELETE CASCADE,
-  tipo            TEXT NOT NULL CHECK (tipo IN ('impresion', 'clic', 'guardado', 'descarte')),
+  tipo            TEXT NOT NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE events DROP CONSTRAINT IF EXISTS events_tipo_check;
+ALTER TABLE events ADD CONSTRAINT events_tipo_check
+  CHECK (tipo IN ('impresion', 'clic', 'guardado', 'descarte', 'mala_info'));
+
 
 CREATE INDEX IF NOT EXISTS idx_events_oportunidad
   ON events (opportunity_id, tipo);

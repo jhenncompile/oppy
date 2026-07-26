@@ -40,11 +40,18 @@ export const api = {
   dispararAgente: (userId) =>
     pedir('/agent/run', { method: 'POST', body: JSON.stringify({ userId }) }),
 
-  obtenerMatches: (userId, { minScore = 0, limit = 20 } = {}) =>
+  obtenerMatches: (userId, { minScore = 30, limit = 20 } = {}) =>
     pedir(`/matches?userId=${userId}&minScore=${minScore}&limit=${limit}`),
 
-  actualizarMatch: (matchId, estado) =>
-    pedir(`/matches/${matchId}`, { method: 'PATCH', body: JSON.stringify({ estado }) }),
+  actualizarMatch: (matchId, estadoOPayload, extra = {}) => {
+    const cuerpo = typeof estadoOPayload === 'string'
+      ? { estado: estadoOPayload, ...extra }
+      : estadoOPayload;
+    return pedir(`/matches/${matchId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(cuerpo)
+    });
+  },
 
   /** Contacto para avisos y para recuperar el acceso: el mismo dato, un permiso. */
   actualizarContacto: (userId, contacto) =>

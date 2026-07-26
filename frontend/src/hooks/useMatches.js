@@ -55,21 +55,52 @@ export function useMatches(userId) {
    * una lista que se refresca sola, esperar la respuesta se siente como que el
    * click no hizo nada.
    */
-  const cambiarEstado = useCallback(async (match, nuevoEstado) => {
+  const cambiarEstado = useCallback(async (match, nuevoEstado, opciones = {}) => {
+    const { tipoFeedback = null, comentario = null } = opciones;
+    const ocultar = nuevoEstado === 'descartado';
+
     setMatches((previos) =>
-      previos.map((m) => (m.id === match.id ? { ...m, estado: nuevoEstado } : m))
+      ocultar
+        ? previos.filter((m) => m.id !== match.id)
+        : previos.map((m) => (m.id === match.id ? { ...m, estado: nuevoEstado } : m))
     );
 
     try {
-      await api.actualizarMatch(match.id, nuevoEstado);
+      await api.actualizarMatch(match.id, {
+        estado: nuevoEstado,
+        ...(tipoFeedback ? { tipoFeedback } : {}),
+        ...(comentario ? { comentario } : {})
+      });
     } catch {
-      setMatches((previos) =>
-        previos.map((m) => (m.id === match.id ? { ...m, estado: match.estado } : m))
-      );
+      setMatches((previos) => {
+        if (ocultar && !previos.some((m) => m.id === match.id)) {
+          return [...previos, match].sort(
+            (a, b) => (b.compatibilidad ?? 0) - (a.compatibilidad ?? 0)
+          );
+        }
+        return previos.map((m) => (m.id === match.id ? { ...m, estado: match.estado } : m));
+      });
     }
   }, []);
 
-  return { matches, cargando, error, recargar, cambiarEstado, setMatches };
+  const reportarMalaInfo = useCallback(
+    async (match, comentario = '') =>
+      cambiarEstado(match, 'descartado', {
+        tipoFeedback: 'mala_info',
+        comentario: comentario || null
+      }),
+    [cambiarEstado]
+  );
+
+  return {
+    matches,
+    cargando,
+    error,
+    recargar,
+    cambiarEstado,
+    reportarMalaInfo,
+    setMatches
+  };
 }
 
 /** Las que ya estan en seguimiento, en cualquier etapa. */

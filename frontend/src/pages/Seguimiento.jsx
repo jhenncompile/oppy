@@ -101,7 +101,7 @@ function Recordatorios({ filas }) {
 
 export function Seguimiento() {
   const { perfil } = usePerfil();
-  const { matches, cambiarEstado } = useMatchesCompartidos();
+  const { matches, cambiarEstado, reportarMalaInfo } = useMatchesCompartidos();
   const {
     propias,
     agregar,
@@ -180,6 +180,7 @@ export function Seguimiento() {
                         match={match}
                         onGuardar={(m) => cambiarEstado(m, 'visto')}
                         onSeguimiento={cambiarEstado}
+                        onMalaInfo={reportarMalaInfo}
                       />
                     ))}
 
