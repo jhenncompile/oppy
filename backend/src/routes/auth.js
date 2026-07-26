@@ -43,8 +43,8 @@ authRouter.get(
   '/estado',
   asyncHandler(async (_req, res) => {
     res.json({
-      disponible: env.features.zavu,
-      canal: env.features.zavu ? 'zavu' : null
+      disponible: env.features.acceso,
+      canal: env.features.zavu ? 'zavu' : (env.features.acceso ? 'dev-log' : null)
     });
   })
 );
@@ -70,7 +70,7 @@ authRouter.post(
     // busca.
     res.status(202).json({ enviado: true, expiraEn: VIGENCIA_MINUTOS * 60 });
 
-    if (!env.features.zavu) return;
+    if (!env.features.acceso) return;
 
     try {
       const usuario = await accesoRepository.findUserByContacto(contacto);
@@ -98,9 +98,19 @@ authRouter.post(
         minutos: VIGENCIA_MINUTOS
       });
 
-      // enviarNotificacion nunca lanza: un canal caido se registra y ya.
-      const envio = await enviarNotificacion(contacto, texto);
-      if (!envio.exito) log.warn('Codigo no enviado', { error: envio.error });
+      if (env.features.zavu) {
+        // enviarNotificacion nunca lanza: un canal caido se registra y ya.
+        const envio = await enviarNotificacion(contacto, texto);
+        if (!envio.exito) log.warn('Codigo no enviado', { error: envio.error });
+      } else {
+        // Sin Zavu (dev): el codigo vive solo en logs. No se manda por correo.
+        log.info('Codigo de acceso (dev — copiar del log)', {
+          userId: usuario.id,
+          contacto,
+          codigo,
+          expiraEn: expiraEn.toISOString()
+        });
+      }
     } catch (error) {
       // La respuesta ya salio: aca solo queda dejar rastro.
       log.error('Fallo al emitir el codigo', { error: error.message });

@@ -4,7 +4,7 @@ import { Button } from '../components/Button.jsx';
 import { TrustBadge } from '../components/TrustBadge.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
 import { useMatchesCompartidos, usePropiasCompartidas } from '../Layout.jsx';
-import { filasConFecha } from '../hooks/usePropias.js';
+import { filasConFecha, sinFechasPeroConOportunidades } from '../hooks/usePropias.js';
 import { Icono } from '../components/Icono.jsx';
 
 /**
@@ -92,6 +92,7 @@ export function Calendario() {
 
   const filas = filasConFecha({ matches, propias });
   const grupos = agrupar(filas);
+  const haySinFecha = sinFechasPeroConOportunidades({ matches, propias });
 
   return (
     <Panel>
@@ -102,11 +103,15 @@ export function Calendario() {
       {filas.length === 0 ? (
         <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-6 text-center">
           <Icono nombre="calendario" tamanio={40} className="text-ink-secondary" />
-          <p className="text-lg font-medium text-ink">No tienes fechas por delante.</p>
+          <p className="text-lg font-medium text-ink">
+            {haySinFecha
+              ? 'Todavia no hay fechas de cierre'
+              : 'No tienes fechas por delante.'}
+          </p>
           <p className="text-sm text-ink-secondary">
-            Aca aparecen los cierres de todo lo que tenga plazo: lo que te
-            recomiendo, lo que guardes y lo que anotes por tu cuenta. Ordenado
-            por lo que se viene primero.
+            {haySinFecha
+              ? 'Lo que encontre todavia no tiene plazo publicado, o no pude leerlo. Podes anotarle una fecha desde Seguimiento, o esperar a que aparezcan convocatorias con cierre.'
+              : 'Aca aparecen los cierres de todo lo que tenga plazo: lo que te recomiendo, lo que guardes y lo que anotes por tu cuenta. Ordenado por lo que se viene primero.'}
           </p>
           <Button variante="primario" onClick={() => navegar('/oportunidades')}>
             <Icono nombre="brujula" tamanio={16} />
@@ -154,7 +159,7 @@ export function Calendario() {
                         <TrustBadge confianza={fila.confianza} />
                         {/* Una sugerencia no es un compromiso. Decirlo evita que
                             la persona crea que se anoto en algo que no eligio. */}
-                        {fila.origen === 'sugerida' && (
+                        {!fila.enSeguimiento && (
                           <span className="pill border border-line-subtle bg-surface-subtle text-ink-secondary">
                             <Icono nombre="chispas" tamanio={13} />
                             Sugerida

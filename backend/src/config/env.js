@@ -28,6 +28,9 @@ const schema = z.object({
 
   // Zavu — mensajeria unificada para las notificaciones. https://zavu.dev
   ZAVUDEV_API_KEY: z.string().default(''),
+  // En development, sin Zavu: el acceso por codigo sigue disponible y el
+  // codigo se imprime en los logs del backend (para probar /acceso local).
+  AUTH_DEV_LOG_CODE: z.enum(['true', 'false']).default('true'),
   // Por debajo de este puntaje no se molesta a nadie: una notificacion que no
   // valia la pena entrena a la persona a ignorar las siguientes.
   NOTIF_MATCH_THRESHOLD: z.coerce.number().int().min(0).max(100).default(80),
@@ -84,7 +87,11 @@ export const env = {
     exa: raw.EXA_API_KEY.length > 0,
     firecrawl: raw.FIRECRAWL_API_KEY.length > 0,
     zavu: raw.ZAVUDEV_API_KEY.length > 0,
-    oppy: looksLikeUrl(raw.OPPY_API_URL)
+    oppy: looksLikeUrl(raw.OPPY_API_URL),
+    // Acceso usable: con Zavu real, o en desarrollo logueando el codigo.
+    acceso:
+      raw.ZAVUDEV_API_KEY.length > 0
+      || (raw.NODE_ENV === 'development' && raw.AUTH_DEV_LOG_CODE === 'true')
   }
 };
 

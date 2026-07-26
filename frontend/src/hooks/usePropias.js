@@ -114,6 +114,8 @@ const vigenteParaCalendario = (match) =>
  * cosas distintas y no deberian pesar igual.
  */
 export function filasConFecha({ matches = [], propias = [] }) {
+  // Incluye recomendaciones nuevas/vistas con fecha: el calendario sirve para
+  // "que se me viene", no solo lo ya guardado en seguimiento.
   const deMatches = matches.filter(vigenteParaCalendario).map((match) => ({
     clave: `match-${match.id}`,
     titulo: match.oportunidad.titulo,
@@ -123,7 +125,7 @@ export function filasConFecha({ matches = [], propias = [] }) {
     rutaDetalle: `/oportunidad/${match.id}`,
     enlace: null,
     propia: false,
-    origen: enSeguimiento(match) ? 'seguimiento' : 'sugerida'
+    enSeguimiento: enSeguimiento(match)
   }));
 
   const deLibreta = propias.filter(propiaActiva).map((propia) => ({
@@ -135,7 +137,9 @@ export function filasConFecha({ matches = [], propias = [] }) {
     rutaDetalle: null,
     enlace: propia.enlace,
     propia: true,
-    origen: 'propia'
+    // Lo que alguien se tomo el trabajo de anotar ya es una decision suya: no
+    // hay estado "sugerida" posible en la libreta.
+    enSeguimiento: true
   }));
 
   return [...deMatches, ...deLibreta]
@@ -145,8 +149,7 @@ export function filasConFecha({ matches = [], propias = [] }) {
       if (a.dias !== b.dias) return a.dias - b.dias;
       // A igual urgencia, primero lo que la persona ya eligio: una sugerencia
       // no puede empujar hacia abajo algo que ya decidio seguir.
-      const peso = (fila) => (fila.origen === 'sugerida' ? 1 : 0);
-      return peso(a) - peso(b);
+      return Number(b.enSeguimiento) - Number(a.enSeguimiento);
     });
 }
 
@@ -157,4 +160,13 @@ export function filasConFecha({ matches = [], propias = [] }) {
  * que todavia no miro no puede generar un numero rojo — eso seria apurarla por
  * algo que ni siquiera eligio.
  */
-export const esCompromiso = (fila) => fila.origen !== 'sugerida';
+export const esCompromiso = (fila) => fila.enSeguimiento;
+
+/** Hay oportunidades activas pero ninguna con fecha usable. */
+export function sinFechasPeroConOportunidades({ matches = [], propias = [] }) {
+  const conFecha = filasConFecha({ matches, propias }).length;
+  if (conFecha > 0) return false;
+  const matchesActivos = matches.filter(vigenteParaCalendario).length;
+  const propiasActivas = propias.filter(propiaActiva).length;
+  return matchesActivos + propiasActivas > 0;
+}

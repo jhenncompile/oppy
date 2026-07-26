@@ -49,8 +49,9 @@ export function Acceso() {
       <Panel centrado>
         <PanelTitulo sobretitulo="Acceso">Todavia no puedo recuperar tu perfil</PanelTitulo>
         <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-ink-secondary">
-          Estoy trabajando en esto. Por ahora, si perdiste tu perfil, lo mas
-          rapido es armarlo de nuevo — toma menos de un minuto.
+          Para recuperar el acceso hace falta el envio de codigos (Zavu).
+          Por ahora, si perdiste tu perfil, lo mas rapido es armarlo de nuevo —
+          toma menos de un minuto.
         </p>
         <div className="mt-8">
           <Button variante="primario" tamano="lg" onClick={() => navegar('/onboarding')}>
@@ -137,6 +138,8 @@ export function Acceso() {
             <p className="mb-6 text-base leading-relaxed text-ink-secondary">
               Te mande un codigo de {LARGO_CODIGO} digitos a{' '}
               <strong className="break-all text-ink">{contacto}</strong>. Vence en diez minutos.
+              Si estas en desarrollo sin Zavu, el codigo aparece en la terminal
+              del backend (buscá &quot;Codigo de acceso&quot;).
             </p>
 
             <Campo

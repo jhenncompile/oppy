@@ -175,7 +175,12 @@ function construirPrompt(documento, categorias) {
 }
 
 function aDominio(cruda, documento) {
-  const fechaLimite = normalizarFecha(cruda.fecha_limite);
+  let fechaLimite = normalizarFecha(cruda.fecha_limite);
+  if (!fechaLimite) {
+    fechaLimite = extraerFechaDelTexto(
+      [documento.titulo, documento.texto?.slice(0, 3500)].filter(Boolean).join('\n')
+    );
+  }
 
   return {
     titulo: cruda.titulo.trim(),
@@ -228,4 +233,57 @@ function normalizarFecha(valor) {
   const fecha = new Date(valor);
   if (Number.isNaN(fecha.getTime())) return null;
   return fecha.toISOString().slice(0, 10);
+}
+
+const MESES = {
+  enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
+  julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10,
+  noviembre: 11, diciembre: 12
+};
+
+/**
+ * Oppy LoRA a menudo omite `deadline`. Si la pagina trae una fecha futura
+ * legible, la usamos para el calendario y recordatorios.
+ */
+export function extraerFechaDelTexto(texto) {
+  if (!texto || typeof texto !== 'string') return null;
+
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const candidatas = [];
+
+  for (const match of texto.matchAll(/\b(20\d{2})-(\d{2})-(\d{2})\b/g)) {
+    candidatas.push(`${match[1]}-${match[2]}-${match[3]}`);
+  }
+
+  for (const match of texto.matchAll(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](20\d{2})\b/g)) {
+    const d = Number(match[1]);
+    const m = Number(match[2]);
+    const y = match[3];
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      candidatas.push(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+    }
+  }
+
+  for (const match of texto.matchAll(
+    /\b(\d{1,2})\s+de\s+([A-Za-záéíóúñ]+)\s+(?:de\s+)?(20\d{2})\b/gi
+  )) {
+    const mes = MESES[match[2].toLowerCase()];
+    if (!mes) continue;
+    const d = Number(match[1]);
+    candidatas.push(
+      `${match[3]}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    );
+  }
+
+  const futuras = candidatas
+    .map((iso) => normalizarFecha(iso))
+    .filter(Boolean)
+    .filter((iso) => {
+      const f = new Date(`${iso}T12:00:00`);
+      return !Number.isNaN(f.getTime()) && f >= hoy;
+    })
+    .sort();
+
+  return futuras[0] ?? null;
 }
