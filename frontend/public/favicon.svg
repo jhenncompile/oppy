@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Misma geometria que components/Logo.jsx. Los colores van literales
+       porque un favicon no hereda las variables de la pagina; el paso 9 es el
+       color de marca y es el mismo en los dos temas, asi que solo cambian los
+       vientos para que se separen sobre una barra oscura. -->
+  <style>
+    .marca   { fill: #49a0c5; }
+    .vientos { fill: #0d7396; }
+    @media (prefers-color-scheme: dark) {
+      .vientos { fill: #7ecbe8; }
+    }
+  </style>
+  <path class="vientos" d="M22.01 9.99 L19 16 L22.01 22.01 L16 19 L9.99 22.01 L13 16 L9.99 9.99 L16 13 Z"/>
+  <path class="marca" d="M16 2 L18.48 13.52 L30 16 L18.48 18.48 L16 30 L13.52 18.48 L2 16 L13.52 13.52 Z"/>
+</svg>

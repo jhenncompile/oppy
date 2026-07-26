@@ -2,6 +2,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { Panel, PanelTitulo } from '../components/Panel.jsx';
 import { Button } from '../components/Button.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
+import { useAcceso } from '../hooks/useAcceso.jsx';
 
 /**
  * Los canales que todavia no existen se muestran igual, deshabilitados.
@@ -17,6 +18,7 @@ const CANALES = [
 
 export function Landing() {
   const { perfil, cargando } = usePerfil();
+  const { disponible } = useAcceso();
 
   // Quien ya tiene perfil no vuelve a ver la portada: va directo a lo suyo.
   if (perfil) return <Navigate to="/oportunidades" replace />;
@@ -40,6 +42,18 @@ export function Landing() {
           </Button>
         </Link>
         <p className="text-xs text-ink-secondary">Toma menos de un minuto. No pedimos CV ni documentos.</p>
+
+        {/* Nunca compite con "Empezar": recuperar el acceso es el camino de
+            quien ya paso por aca, no una alternativa para empezar. Solo aparece
+            si el backend de acceso existe. */}
+        {disponible && (
+          <Link
+            to="/acceso"
+            className="min-h-[44px] text-sm text-ink-secondary underline underline-offset-2 hover:text-ink"
+          >
+            Ya usaste Oppy antes? Recupera tu perfil
+          </Link>
+        )}
       </div>
 
       <div className="mx-auto mt-12 max-w-lg border-t border-line-subtle pt-8">

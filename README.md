@@ -243,9 +243,13 @@ inverso expuesto por API, portal para organizaciones, mas de cinco fuentes.
 
 ## Despliegue
 
-`render.yaml` define la API, el cron y la base. `frontend/netlify.toml` define
-el frontend. El cron embebido (`CRON_ENABLED=true`) y el cron job de Render son
+`render.yaml` define la API y el cron; `frontend/netlify.toml` define el
+frontend. El cron embebido (`CRON_ENABLED=true`) y el cron job de Render son
 alternativas: activar los dos duplicaria el descubrimiento.
+
+La base vive en Supabase y los dos servicios reciben la misma `DATABASE_URL` —
+el indice de oportunidades es compartido, asi que apuntar a bases distintas
+rompe la premisa. Los pasos estan en [`docs/11-supabase.md`](docs/11-supabase.md).
 
 ## Documentacion
 

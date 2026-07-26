@@ -46,7 +46,19 @@ const schema = z.object({
   // Reemplaza descubrimiento y evaluacion por datos de ejemplo: permite ver la
   // interfaz completa sin claves de scraping ni modelo servido. Solo para
   // desarrollo — `render.yaml` no define la variable.
-  DEMO_MODE: z.enum(['true', 'false']).default('false')
+  DEMO_MODE: z.enum(['true', 'false']).default('false'),
+
+  // Contacto del perfil de demo, para que el aviso de Zavu llegue a algun lado
+  // durante una demostracion en vivo.
+  //
+  // Va por entorno y NO dentro de `seed.js` porque ese archivo se versiona: un
+  // correo o un telefono en un repositorio publico se scrapea para siempre.
+  // Sin estos valores el seed crea los perfiles sin contacto y nadie recibe
+  // nada, que es el comportamiento correcto por defecto.
+  DEMO_CONTACTO_EMAIL: z.string().email().or(z.literal('')).default(''),
+  // En formato internacional: Zavu elige el canal por el formato del
+  // destinatario, y un numero sin prefijo de pais no le dice a donde mandarlo.
+  DEMO_CONTACTO_TELEFONO: z.string().regex(/^\+\d{8,15}$/).or(z.literal('')).default('')
 });
 
 const parsed = schema.safeParse(process.env);

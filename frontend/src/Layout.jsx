@@ -19,7 +19,7 @@ export function useMatchesCompartidos() {
  * En la portada y el onboarding la persona todavia no tiene nada que navegar, y
  * mostrarle cuatro destinos la distrae del unico paso que importa.
  */
-const SIN_NAVEGACION = ['/', '/onboarding'];
+const SIN_NAVEGACION = ['/', '/onboarding', '/acceso'];
 
 export function Layout() {
   const { perfil } = usePerfil();

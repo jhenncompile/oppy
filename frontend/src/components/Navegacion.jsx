@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { Logo } from './Logo.jsx';
 
 /**
  * Navegacion principal.
@@ -14,9 +15,11 @@ import { NavLink } from 'react-router-dom';
  *
  * Nunca iconos solos: siempre icono + texto, en las dos variantes.
  */
+// `corto` es la etiqueta de la barra inferior: "Mis oportunidades" no entra en
+// un cuarto de 390px. Se acorta a lo que la persona fue a buscar ahi.
 const DESTINOS = [
   { a: '/oportunidades', icono: '◆', texto: 'Oportunidades' },
-  { a: '/seguimiento', icono: '★', texto: 'Mis oportunidades' },
+  { a: '/seguimiento', icono: '★', texto: 'Mis oportunidades', corto: 'Guardadas' },
   { a: '/calendario', icono: '▦', texto: 'Calendario' },
   { a: '/perfil', icono: '●', texto: 'Mi perfil' }
 ];
@@ -55,7 +58,9 @@ export function Navegacion({ cierranPronto = 0 }) {
         className="hidden w-60 shrink-0 lg:block"
       >
         <div className="sticky top-6 panel px-3 py-6">
-          <p className="px-3 pb-4 font-display text-xl font-bold text-ink">Oppy</p>
+          <div className="px-3 pb-4">
+            <Logo tamanio="sm" animado />
+          </div>
           <ul className="flex flex-col gap-1">
             {DESTINOS.map((destino) => (
               <li key={destino.a}>
@@ -98,7 +103,8 @@ export function Navegacion({ cierranPronto = 0 }) {
                       />
                     )}
                     <span aria-hidden="true" className="text-sm">{destino.icono}</span>
-                    <span className="text-center">{destino.texto}</span>
+                    <span className="text-center">{destino.corto ?? destino.texto}</span>
+                    {destino.corto && <span className="sr-only">{destino.texto}</span>}
                   </>
                 )}
               </NavLink>

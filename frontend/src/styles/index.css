@@ -53,9 +53,56 @@
   .paso-entra {
     animation: paso-entra 200ms ease-out both;
   }
+
+  /* Logo: una rosa de los vientos.
+   *
+   * El origen de las transformaciones va en unidades del viewBox y no en
+   * porcentajes, porque los dos grupos comparten el centro de la rosa (16,16)
+   * y no el de su propia caja: con `50% 50%` los vientos girarian alrededor de
+   * su bounding box y la rosa se desarmaria.
+   *
+   * La entrada anima el GRUPO exterior y el giro continuo el de adentro. Estan
+   * separados a proposito: una animacion con `fill-mode: both` deja la
+   * propiedad fijada al terminar, asi que si las dos vivieran en el mismo
+   * elemento, la entrada bloquearia el giro para siempre. */
+  .logo-rosa,
+  .logo-marca,
+  .logo-vientos,
+  .logo-vientos-grupo { transform-origin: 16px 16px; }
+
+  /* Un logo que se mueve todo el tiempo cansa: la secuencia corre una sola vez
+   * al montar. La rosa se orienta girando hasta su lugar, la palabra entra
+   * detras. */
+  .logo-anima .logo-rosa    { animation: logo-rosa 520ms cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+  .logo-anima .logo-palabra { animation: logo-palabra 360ms ease-out 200ms both; }
+
+  /* Mientras el agente corre, la rosa busca el rumbo: giran solo los vientos.
+   * Reusa la marca en vez de agregar un spinner — es el mismo gesto, no un
+   * elemento nuevo. */
+  .logo-buscando .logo-vientos-grupo { animation: logo-rumbo 3.2s linear infinite; }
+
+  @media (hover: hover) {
+    .logo-vientos { transition: transform 320ms cubic-bezier(0.2, 0.8, 0.3, 1); }
+    .logo-interactivo:hover .logo-vientos { transform: rotate(45deg); }
+  }
 }
 
 @keyframes paso-entra {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
+}
+
+@keyframes logo-rosa {
+  from { opacity: 0; transform: scale(0.7) rotate(-75deg); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes logo-palabra {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes logo-rumbo {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }

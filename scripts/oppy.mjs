@@ -213,14 +213,48 @@ async function escribirEnvBackend(destino) {
   const url = `postgresql://${encodeURIComponent(usuario)}:${encodeURIComponent(clave)}@${host}:${puerto}/${base}`;
   const plantilla = readFileSync(join(SERVICIOS.backend.dir, '.env.example'), 'utf8');
 
-  writeFileSync(destino, plantilla.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${url}`));
+  // Un host remoto es, en la practica, un host gestionado — Supabase, Neon,
+  // Render — y todos exigen SSL. Dejar el `false` de la plantilla ahi manda a
+  // la persona a depurar un error de conexion que no es suyo.
+  const remoto = esHostRemoto(host);
+  const contenido = plantilla
+    .replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${url}`)
+    .replace(/^DATABASE_SSL=.*$/m, `DATABASE_SSL=${remoto ? 'true' : 'false'}`);
+
+  writeFileSync(destino, contenido);
   ok(`backend/.env escrito (base "${base}" en ${host}:${puerto})`);
+  if (remoto) nota('host remoto detectado: DATABASE_SSL=true');
+}
+
+/** Solo una base local se puede crear desde aca; una gestionada ya viene dada. */
+function esHostRemoto(host) {
+  return !['localhost', '127.0.0.1', '::1', ''].includes(host);
+}
+
+/**
+ * Opciones de conexion para los clientes sueltos de este script.
+ *
+ * `backend/src/db/index.js` resuelve el SSL leyendo DATABASE_SSL, pero aca se
+ * conecta antes de que el backend arranque, asi que la regla se repite: contra
+ * un host gestionado, sin SSL no hay conexion.
+ */
+function opcionesConexion(databaseUrl) {
+  const { hostname } = new URL(databaseUrl);
+  return {
+    connectionString: databaseUrl,
+    ssl: esHostRemoto(hostname) ? { rejectUnauthorized: false } : false
+  };
 }
 
 /**
  * Crea la base si falta, conectandose a `postgres` — la base de mantenimiento
  * que siempre existe. Usa el cliente pg del backend en vez de psql, que en
  * Windows rara vez esta en el PATH.
+ *
+ * Contra una base gestionada no crea nada: Supabase y compania entregan la base
+ * ya creada y el rol de la aplicacion no tiene permiso para CREATE DATABASE.
+ * Ahi el paso se reduce a comprobar que la conexion funciona, que es lo unico
+ * que hace falta saber antes de aplicar el esquema.
  */
 async function asegurarBase(databaseUrl) {
   const require = createRequire(join(SERVICIOS.backend.dir, 'package.json'));
@@ -228,23 +262,32 @@ async function asegurarBase(databaseUrl) {
 
   const destino = new URL(databaseUrl);
   const nombre = decodeURIComponent(destino.pathname.slice(1));
+  const gestionada = esHostRemoto(destino.hostname);
 
   const admin = new URL(databaseUrl);
-  admin.pathname = '/postgres';
+  if (!gestionada) admin.pathname = '/postgres';
 
-  const cliente = new pg.Client({ connectionString: admin.toString() });
+  const cliente = new pg.Client(opcionesConexion(admin.toString()));
 
   try {
     await cliente.connect();
   } catch (fallo) {
     throw new Error(
       `No se pudo conectar a PostgreSQL en ${destino.host} — ${fallo.message}\n` +
-      '  Revisa que el servicio este corriendo y que el usuario y la contrasena\n' +
-      '  de backend/.env sean correctos. La opcion 1 permite reescribirlo.'
+      (gestionada
+        ? '  Revisa la cadena de conexion y que DATABASE_SSL=true en backend/.env.\n' +
+          '  Si la base esta en Supabase, usa la URL del "Session pooler".'
+        : '  Revisa que el servicio este corriendo y que el usuario y la contrasena\n' +
+          '  de backend/.env sean correctos. La opcion 1 permite reescribirlo.')
     );
   }
 
   try {
+    if (gestionada) {
+      ok(`conectado a la base gestionada "${nombre}" en ${destino.hostname}`);
+      return pg;
+    }
+
     const { rowCount } = await cliente.query(
       'select 1 from pg_database where datname = $1',
       [nombre]
@@ -267,7 +310,7 @@ async function asegurarBase(databaseUrl) {
  * prueba. Por eso se mira antes si la tabla ya tiene algo.
  */
 async function sembrarSiHaceFalta(pg, databaseUrl) {
-  const cliente = new pg.Client({ connectionString: databaseUrl });
+  const cliente = new pg.Client(opcionesConexion(databaseUrl));
   await cliente.connect();
   let perfiles;
   try {

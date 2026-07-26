@@ -4,8 +4,10 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import { Layout } from './Layout.jsx';
 import { ProveedorPerfil } from './hooks/usePerfil.jsx';
+import { ProveedorAcceso } from './hooks/useAcceso.jsx';
 import { Landing } from './pages/Landing.jsx';
 import { Onboarding } from './pages/Onboarding.jsx';
+import { Acceso } from './pages/Acceso.jsx';
 import { Buscando } from './pages/Buscando.jsx';
 import { Oportunidades } from './pages/Oportunidades.jsx';
 import { Detalle } from './pages/Detalle.jsx';
@@ -25,6 +27,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/', element: <Landing /> },
       { path: '/onboarding', element: <Onboarding /> },
+      { path: '/acceso', element: <Acceso /> },
       { path: '/buscando', element: <Buscando /> },
       { path: '/oportunidades', element: <Oportunidades /> },
       { path: '/oportunidad/:matchId', element: <Detalle /> },
@@ -41,7 +44,9 @@ const router = createBrowserRouter([
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ProveedorPerfil>
-      <RouterProvider router={router} />
+      <ProveedorAcceso>
+        <RouterProvider router={router} />
+      </ProveedorAcceso>
     </ProveedorPerfil>
   </StrictMode>
 );

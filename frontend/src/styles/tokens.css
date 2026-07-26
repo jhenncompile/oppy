@@ -222,6 +222,16 @@
   --score-track: var(--gray-4);
   --score-fill: var(--blue-9);
   --score-text: var(--blue-11);
+
+  /* Logo: una rosa de los vientos. Las cuatro puntas largas llevan el paso 9,
+   * que es el color de marca y el unico que NO cambia entre temas — una marca
+   * que cambia de color al alternar el tema no es una marca.
+   *
+   * Los vientos (las cuatro puntas cortas) usan el 11 justamente porque si
+   * cambia: en claro queda mas oscuro que la marca y en oscuro mas claro, asi
+   * que las dos siluetas se separan sobre los dos fondos. */
+  --logo-marca: var(--blue-9);
+  --logo-vientos: var(--blue-11);
 }
 
 /* == 2b. Semanticos — ajustes del tema oscuro ==============================

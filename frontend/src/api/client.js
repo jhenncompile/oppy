@@ -24,6 +24,17 @@ export const api = {
 
   obtenerPerfil: (userId) => pedir(`/profiles/${userId}`),
 
+  // --- Acceso por codigo. Contrato en docs/12-auth.md. -------------------
+  // Mientras el backend no exista, `estadoAcceso` devuelve 404 y la interfaz
+  // esconde la funcionalidad sola.
+  estadoAcceso: () => pedir('/auth/estado'),
+
+  pedirCodigoAcceso: (contacto) =>
+    pedir('/auth/codigo', { method: 'POST', body: JSON.stringify({ contacto }) }),
+
+  canjearCodigoAcceso: (contacto, codigo) =>
+    pedir('/auth/sesion', { method: 'POST', body: JSON.stringify({ contacto, codigo }) }),
+
   obtenerOportunidad: (id) => pedir(`/opportunities/${id}`),
 
   dispararAgente: (userId) =>

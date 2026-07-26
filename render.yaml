@@ -1,15 +1,15 @@
 # Infraestructura de Oppy en Render.
 #
-# Dos servicios y una base: la API (que ademas expone el stream de progreso) y
-# un cron job que corre el MISMO pipeline en un proceso aparte.
+# Dos servicios: la API (que ademas expone el stream de progreso) y un cron job
+# que corre el MISMO pipeline en un proceso aparte.
 #
 # El cron embebido en la API (CRON_ENABLED=true) y este cron job son
 # alternativas, no complementos: activar los dos duplicaria el descubrimiento.
-
-databases:
-  - name: oppy-db
-    databaseName: oppy
-    plan: free
+#
+# La base NO se provisiona aca: vive en Supabase y los dos servicios reciben la
+# misma DATABASE_URL como secreto. Es la unica forma de que la API y el cron
+# compartan indice — que es la decision que sostiene el costo por usuario.
+# Ver docs/11-supabase.md.
 
 services:
   - type: web
@@ -23,10 +23,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Cadena del Session pooler de Supabase. Secreto: no vive en el repo.
       - key: DATABASE_URL
-        fromDatabase:
-          name: oppy-db
-          property: connectionString
+        sync: false
       - key: DATABASE_SSL
         value: 'true'
       # El cron vive en su propio servicio, no dentro de la API.
@@ -64,10 +63,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Cadena del Session pooler de Supabase. Secreto: no vive en el repo.
       - key: DATABASE_URL
-        fromDatabase:
-          name: oppy-db
-          property: connectionString
+        sync: false
       - key: DATABASE_SSL
         value: 'true'
       - key: OLLAMA_URL

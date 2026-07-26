@@ -72,6 +72,13 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS edad INTEGER;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS objetivos TEXT[] NOT NULL DEFAULT '{}';
 
+-- El ALTER de arriba agrega la columna sin el CHECK que si trae el CREATE, asi
+-- que una base migrada y una recien creada terminaban con reglas distintas para
+-- la misma columna. Se reafirma aca para que las dos queden iguales.
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_edad_check;
+ALTER TABLE users ADD CONSTRAINT users_edad_check
+  CHECK (edad IS NULL OR edad BETWEEN 14 AND 100);
+
 -- objetivo (uno) -> objetivos (varios). Los perfiles reales persiguen mas de
 -- una cosa a la vez; el valor que ya existia pasa a ser el primero, que es el
 -- que mas pesa.
@@ -88,6 +95,23 @@ BEGIN
 END $$;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS experiencia TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS habilidades TEXT[] NOT NULL DEFAULT '{}';
+
+-- `objetivos` es el unico campo enumerado del perfil, y hasta ahora la lista
+-- valida solo existia en Zod. Todo lo que entra por otro lado — el seed, una
+-- carga manual, el SQL Editor de Supabase — podia guardar un objetivo que el
+-- orquestador no sabe traducir a categorias, y el perfil quedaba sin plan.
+--
+-- El tope de 3 va junto con la lista y no en otro lado: cada objetivo extra
+-- abre mas busquedas, y el descubrimiento es lo que cuesta.
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_objetivos_check;
+ALTER TABLE users ADD CONSTRAINT users_objetivos_check
+  CHECK (
+    cardinality(objetivos) <= 3
+    AND objetivos <@ ARRAY[
+      'empleo', 'reinsercion', 'beca', 'curso',
+      'crecimiento', 'voluntariado', 'evento'
+    ]::text[]
+  );
 ALTER TABLE users ADD COLUMN IF NOT EXISTS preferencias JSONB NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS restricciones TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
@@ -144,6 +168,10 @@ CREATE INDEX IF NOT EXISTS idx_opportunities_categoria
   ON opportunities (categoria);
 CREATE INDEX IF NOT EXISTS idx_opportunities_skills
   ON opportunities USING GIN (skills);
+-- El reporte de alcance de una organizacion filtra por aca. Parcial porque la
+-- enorme mayoria de las oportunidades son descubiertas y no tienen org.
+CREATE INDEX IF NOT EXISTS idx_opportunities_org
+  ON opportunities (org_id) WHERE org_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- Resultado del razonamiento del agente, por persona.
@@ -324,3 +352,36 @@ CREATE TABLE IF NOT EXISTS notificaciones (
 
 CREATE INDEX IF NOT EXISTS idx_notificaciones_recientes
   ON notificaciones (user_id, enviado_en DESC);
+
+-- ---------------------------------------------------------------------------
+-- Row Level Security.
+--
+-- Imprescindible en Supabase y neutro fuera de el. Supabase publica el esquema
+-- `public` por PostgREST con una clave anonima pensada para vivir en el
+-- navegador: sin RLS, el email y el telefono de cada persona quedan a un fetch
+-- de distancia de cualquiera. Que Oppy guarde el minimo indispensable no sirve
+-- de nada si ese minimo es publico.
+--
+-- Se activa SIN politicas a proposito. Oppy no usa PostgREST: se conecta por
+-- protocolo Postgres con el rol dueño de las tablas, que esta exento de RLS.
+-- Asi que "sin politicas" significa que no entra nadie mas y la aplicacion no
+-- se entera.
+--
+-- La condicion es esa exencion: si algun dia la API se conecta con un rol
+-- distinto del dueño de las tablas, RLS SI la afecta y hay que darle BYPASSRLS
+-- o escribir politicas explicitas.
+--
+-- Idempotente: activar RLS sobre una tabla que ya lo tiene no hace nada.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  tabla TEXT;
+BEGIN
+  FOREACH tabla IN ARRAY ARRAY[
+    'orgs', 'users', 'opportunities', 'matches',
+    'events', 'consents', 'agent_runs', 'notificaciones'
+  ]
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tabla);
+  END LOOP;
+END $$;
