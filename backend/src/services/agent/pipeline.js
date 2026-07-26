@@ -8,13 +8,15 @@ import * as matchRepository from '../../repositories/matchRepository.js';
 import * as agentRunRepository from '../../repositories/agentRunRepository.js';
 import { planificar } from './orchestrator.js';
 import { normalizar } from './normalizer.js';
-import { oportunidadesDemo, evaluarDemo } from './demo.js';
+import { oportunidadesDemo } from './demo.js';
 import * as runTracker from './runTracker.js';
 
 const log = logger.child({ module: 'pipeline' });
 
-const CONCURRENCIA_NORMALIZACION = 4;
-const CONCURRENCIA_SCORING = 4;
+// En local Ollama no aguanta bien 2 extracciones a la vez: se pisan y
+// terminan en timeout → 0 oportunidades. Una a la vez es mas lento pero fiable.
+const CONCURRENCIA_NORMALIZACION = 1;
+const CONCURRENCIA_SCORING = 1;
 
 /** Pausa entre pasos narrados, solo en modo demo. Ver `ritmo`. */
 const RITMO_DEMO_MS = 700;
@@ -72,7 +74,7 @@ async function correr({ perfil, corrida, disparador }) {
   try {
     paso({
       tipo: 'perfil',
-      mensaje: `Entendi tu perfil: ${perfil.carrera}, ${perfil.nivelEstudios}, ${perfil.ubicacion}`
+      mensaje: resumenPerfil(perfil)
     });
     await ritmo();
 
@@ -91,7 +93,7 @@ async function correr({ perfil, corrida, disparador }) {
     // 2 y 3. Conseguir oportunidades: rastreando el mundo real, o del catalogo
     // de demo cuando no hay claves de scraping ni modelo servido.
     const oportunidades = env.demoMode
-      ? await deCatalogoDemo(paso)
+      ? deCatalogoDemo(paso, plan.categorias)
       : await descubrirYNormalizar(plan, paso);
 
     // 4. Alimentar el indice compartido
@@ -99,14 +101,11 @@ async function correr({ perfil, corrida, disparador }) {
     paso({ tipo: 'indice', mensaje: `${nuevas} nuevas para el indice`, nuevas });
     await ritmo();
 
-    // 5. Razonar sobre compatibilidad
+    // 5. Razonar sobre compatibilidad.
+    // En demo solo se salta el scraping: el scoring sigue yendo a Ollama para
+    // que el camino local sin LoRA remoto sea el mismo que produccion.
     paso({ tipo: 'scoring_inicio', mensaje: 'Evaluando cuales son para vos' });
-    await ritmo();
-    const matches = await puntuarParaPerfil(
-      perfil,
-      plan.categorias,
-      env.demoMode ? evaluarDemo : evaluarSeguro
-    );
+    const matches = await puntuarParaPerfil(perfil, plan.categorias, evaluarSeguro);
     paso({
       tipo: 'scoring_fin',
       mensaje: `${matches.length} oportunidades compatibles`,
@@ -144,17 +143,48 @@ async function correr({ perfil, corrida, disparador }) {
 async function descubrirYNormalizar(plan, paso) {
   paso({ tipo: 'descubrimiento_inicio', mensaje: 'Rastreando fuentes' });
   const documentos = await descubrir(plan, paso);
+  const priorizados = priorizarDocumentos(documentos);
+  const tope = env.MAX_NORMALIZE_PER_RUN;
+  const aProcesar = priorizados.slice(0, tope);
+
+  if (documentos.length > tope) {
+    paso({
+      tipo: 'descubrimiento_fin',
+      mensaje: `${documentos.length} paginas recuperadas — proceso las ${tope} mas relevantes`,
+      total: documentos.length
+    });
+  } else {
+    paso({
+      tipo: 'descubrimiento_fin',
+      mensaje: `${documentos.length} paginas recuperadas`,
+      total: documentos.length
+    });
+  }
+
+  const totalDocs = aProcesar.length;
   paso({
-    tipo: 'descubrimiento_fin',
-    mensaje: `${documentos.length} paginas recuperadas`,
-    total: documentos.length
+    tipo: 'normalizacion_inicio',
+    mensaje: totalDocs > 0
+      ? `Leyendo y estructurando ${totalDocs} pagina${totalDocs === 1 ? '' : 's'}`
+      : 'Sin paginas para estructurar'
   });
 
-  paso({ tipo: 'normalizacion_inicio', mensaje: 'Leyendo y estructurando convocatorias' });
   const lotes = await mapExitosos(
-    documentos,
+    aProcesar,
     CONCURRENCIA_NORMALIZACION,
-    (documento) => normalizar(documento)
+    async (documento, indice) => {
+      const lote = await normalizar(documento, {
+        categorias: plan.categorias,
+        timeoutMs: env.NORMALIZE_TIMEOUT_MS
+      });
+      paso({
+        tipo: 'normalizacion_progreso',
+        mensaje: `Pagina ${indice + 1} de ${totalDocs}${lote.length ? ` → ${lote.length}` : ''}`,
+        procesados: indice + 1,
+        total: totalDocs
+      });
+      return lote;
+    }
   );
   const oportunidades = lotes.flat();
   paso({
@@ -167,29 +197,39 @@ async function descubrirYNormalizar(plan, paso) {
 }
 
 /**
+ * Prefiere ofertas concretas (con titulo de Exa) sobre listados genericos
+ * scrapeados: esos listados consumen el presupuesto de normalizacion y
+ * suelen no devolver nada util.
+ */
+function priorizarDocumentos(documentos) {
+  return [...documentos].sort((a, b) => puntajeDocumento(b) - puntajeDocumento(a));
+}
+
+function puntajeDocumento(documento) {
+  let puntos = 0;
+  const titulo = (documento.titulo ?? '').trim();
+  const url = documento.url ?? '';
+
+  if (titulo.length >= 12) puntos += 3;
+  if (documento.origenBusqueda || documento.texto?.length > 200) puntos += 2;
+  if (/computrabajo\.com|\/trabajo-de-pasantias|\/ofertas\/?$/i.test(url)) puntos -= 4;
+  if (/pasantias?$|ofertas de trabajo|buscar empleo/i.test(titulo)) puntos -= 3;
+  if (/ingenier|analista|desarroll|empleo|trabajo|pasant/i.test(titulo)) puntos += 2;
+
+  return puntos;
+}
+
+/**
  * El atajo de desarrollo. Narra los mismos pasos — la pantalla de proceso en
  * vivo se ve igual — pero deja dicho que son datos de ejemplo: una demo que se
  * confunde con la real es peor que no tener demo.
  */
-async function deCatalogoDemo(paso) {
+function deCatalogoDemo(paso, categorias) {
   paso({ tipo: 'descubrimiento_inicio', mensaje: 'Modo demo: catalogo de ejemplo, sin rastreo' });
-  const oportunidades = oportunidadesDemo();
-
-  // Se narra fuente por fuente, igual que en el camino real: la pantalla de
-  // proceso tiene que verse igual con datos de ejemplo que con datos reales,
-  // porque es la que se demuestra.
-  const fuentes = [...new Set(oportunidades.map((o) => o.fuente.nombre))];
-  for (const fuente of fuentes) {
-    await ritmo();
-    paso({
-      tipo: 'fuente_fin',
-      fuente,
-      exito: true,
-      encontrados: oportunidades.filter((o) => o.fuente.nombre === fuente).length
-    });
-  }
-
-  await ritmo();
+  const todas = oportunidadesDemo();
+  const oportunidades = categorias?.length
+    ? todas.filter((o) => categorias.includes(o.categoria))
+    : todas;
   paso({
     tipo: 'descubrimiento_fin',
     mensaje: `${oportunidades.length} convocatorias de ejemplo`,
@@ -204,6 +244,23 @@ async function deCatalogoDemo(paso) {
   await ritmo();
 
   return oportunidades;
+}
+
+function resumenPerfil(perfil) {
+  const partes = [
+    perfil.objetivo ? `objetivo ${perfil.objetivo}` : null,
+    perfil.carrera,
+    perfil.nivelEstudios,
+    perfil.ubicacion
+  ].filter(Boolean);
+
+  const extras = [];
+  if (perfil.habilidades?.length) extras.push(`skills: ${perfil.habilidades.slice(0, 3).join(', ')}`);
+  if (perfil.restricciones?.length) extras.push(perfil.restricciones.slice(0, 2).join(', '));
+
+  return extras.length
+    ? `Entendi tu perfil: ${partes.join(' · ')} (${extras.join(' · ')})`
+    : `Entendi tu perfil: ${partes.join(' · ')}`;
 }
 
 async function guardarEnIndice(oportunidades) {

@@ -20,6 +20,7 @@ const ICONOS = {
   busqueda_fin: '·',
   descubrimiento_fin: '◆',
   normalizacion_inicio: '◇',
+  normalizacion_progreso: '·',
   normalizacion_fin: '◆',
   indice: '◆',
   scoring_inicio: '◇',
@@ -47,7 +48,8 @@ const ES_DETALLE = new Set([
   'fuente_inicio',
   'fuente_fin',
   'busqueda_inicio',
-  'busqueda_fin'
+  'busqueda_fin',
+  'normalizacion_progreso'
 ]);
 
 /** Una fuente que no respondio no es un error: que respondan 3 de 5 es un exito. */

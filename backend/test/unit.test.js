@@ -6,9 +6,23 @@ import { mapConLimite, mapExitosos } from '../src/utils/concurrency.js';
 import { fuentesActivas, fuentesPorEstrategia, ESTRATEGIAS } from '../src/services/scraping/sources.js';
 import { combinacionesDeBusqueda } from '../src/services/scraping/discovery.js';
 import { extraerJson } from '../src/services/llm/index.js';
-import { calcularHash } from '../src/services/agent/normalizer.js';
+import { calcularHash, normalizarHeuristico } from '../src/services/agent/normalizer.js';
 import { mensajeDeOportunidad } from '../src/services/notifications/templates.js';
 import { AppError } from '../src/utils/AppError.js';
+import {
+  perfilAOppy,
+  oportunidadAOppy,
+  extraccionACruda,
+  matchingAEvaluacion,
+  deadlineStatusDe
+} from '../src/services/llm/oppyAdapter.js';
+import {
+  alinearConObjetivo,
+  categoriasPara,
+  planDeRespaldo,
+  planDesdePerfil
+} from '../src/services/agent/orchestrator.js';
+import { evaluarHeuristico } from '../src/services/scoring/matcher.js';
 
 const MANANA = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 const AYER = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
@@ -256,4 +270,195 @@ test('mensaje: una convocatoria vencida no anuncia un plazo negativo', () => {
     hoy: HOY
   });
   assert.ok(!/Cierra/.test(texto));
+});
+
+// ---------------------------------------------------------------------------
+test('oppyAdapter: perfil del producto mapea a schema LoRA', () => {
+  const user = perfilAOppy({
+    carrera: 'Ingenieria de Sistemas',
+    habilidades: ['Python', 'SQL'],
+    intereses: ['backend'],
+    experiencia: ['pasantias'],
+    ubicacion: 'Santa Cruz',
+    nivelEstudios: 'universidad'
+  });
+
+  assert.equal(user.career, 'Ingenieria de Sistemas');
+  assert.deepEqual(user.skills, ['Python', 'SQL']);
+  assert.deepEqual(user.interests, ['backend', 'pasantias']);
+  assert.equal(user.location, 'Santa Cruz');
+});
+
+test('oppyAdapter: empleo_junior del LoRA vira a categoria empleo', () => {
+  const cruda = extraccionACruda(
+    {
+      title: 'Pasantia backend Python',
+      type: 'empleo_junior',
+      description: 'Buscamos pasante',
+      skills: ['Python'],
+      deadline: '2026-12-01',
+      url: 'https://ejemplo.bo/pasa'
+    },
+    { type: 'pasantia', category: 'tech' }
+  );
+
+  assert.equal(cruda.titulo, 'Pasantia backend Python');
+  assert.equal(cruda.categoria, 'pasantia');
+  assert.deepEqual(cruda.skills, ['Python']);
+  assert.equal(cruda.fecha_limite, '2026-12-01');
+});
+
+test('oppyAdapter: matching LoRA vira a evaluacion del producto', () => {
+  const evaluacion = matchingAEvaluacion({
+    match: 'alto',
+    score: 88,
+    reason: 'Coincide en Python y ubicacion Santa Cruz'
+  });
+
+  assert.equal(evaluacion.compatibilidad, 88);
+  assert.equal(evaluacion.elegible, true);
+  assert.equal(evaluacion.razones.length, 1);
+  assert.deepEqual(evaluacion.brechas, []);
+});
+
+test('oppyAdapter: match nulo no es elegible', () => {
+  const evaluacion = matchingAEvaluacion({
+    match: 'nulo',
+    score: 10,
+    reason: 'No cumple el nivel de estudios'
+  });
+  assert.equal(evaluacion.elegible, false);
+});
+
+test('oppyAdapter: deadline_status refleja la fecha', () => {
+  assert.equal(deadlineStatusDe(null), 'sin_fecha');
+  assert.equal(deadlineStatusDe(MANANA), 'vigente');
+  assert.equal(deadlineStatusDe(AYER), 'vencida');
+});
+
+test('oppyAdapter: oportunidad del producto mapea type empleo_junior', () => {
+  const opp = oportunidadAOppy({
+    titulo: 'Dev junior',
+    categoria: 'empleo',
+    descripcion: 'Backend',
+    skills: ['Node'],
+    elegibilidad: 'Estudiante',
+    fechaLimite: MANANA
+  });
+  assert.equal(opp.type, 'empleo_junior');
+  assert.equal(opp.deadline_status, 'vigente');
+  assert.deepEqual(opp.requirements, ['Estudiante']);
+});
+
+test('oppyAdapter: el objetivo entra en interests, no en career', () => {
+  const user = perfilAOppy({
+    carrera: 'Sistemas',
+    objetivo: 'empleo',
+    intereses: [],
+    experiencia: [],
+    habilidades: []
+  });
+  assert.equal(user.career, 'Sistemas');
+  assert.deepEqual(user.interests, ['empleo']);
+});
+
+// ---------------------------------------------------------------------------
+test('orquestador: empleo no busca becas en el plan de respaldo', () => {
+  const plan = planDeRespaldo({
+    objetivo: 'empleo',
+    carrera: 'Sistemas',
+    ubicacion: 'Santa Cruz'
+  });
+
+  assert.deepEqual(plan.categorias, ['empleo', 'pasantia']);
+  assert.ok(plan.queries.every((q) => !/\bbecas?\b/i.test(q)));
+  assert.ok(plan.queries.some((q) => /empleo|trabajo|pasant/i.test(q)));
+});
+
+test('orquestador: planDesdePerfil incorpora remoto y habilidades', () => {
+  const plan = planDesdePerfil({
+    objetivo: 'empleo',
+    carrera: 'Sistemas',
+    ubicacion: 'Santa Cruz',
+    habilidades: ['Excel', 'ventas'],
+    restricciones: ['remoto', 'medio_tiempo'],
+    experiencia: ['sin_experiencia']
+  });
+
+  assert.ok(plan.queries.some((q) => /remoto/i.test(q)));
+  assert.ok(plan.queries.some((q) => /Excel/i.test(q)));
+  assert.ok(plan.queries.some((q) => /primer empleo|junior/i.test(q)));
+  assert.match(plan.razonamiento, /empleo/i);
+});
+
+test('orquestador: beca si busca becas', () => {
+  const plan = planDeRespaldo({
+    objetivo: 'beca',
+    carrera: 'Sistemas',
+    ubicacion: 'La Paz'
+  });
+
+  assert.ok(plan.categorias.includes('beca'));
+  assert.ok(plan.queries.some((q) => /\bbecas?\b/i.test(q)));
+});
+
+test('orquestador: alinearConObjetivo descarta queries de becas si pide empleo', () => {
+  const alineado = alinearConObjetivo(
+    {
+      queries: [
+        'becas Sistemas Bolivia 2026 convocatoria',
+        'empleo Sistemas Santa Cruz 2026'
+      ],
+      categorias: ['beca', 'empleo', 'pasantia'],
+      razonamiento: 'mezclado'
+    },
+    { objetivo: 'empleo', carrera: 'Sistemas', ubicacion: 'Santa Cruz' }
+  );
+
+  assert.deepEqual(alineado.categorias.sort(), ['empleo', 'pasantia'].sort());
+  assert.equal(alineado.queries.length, 1);
+  assert.match(alineado.queries[0], /empleo/i);
+});
+
+test('orquestador: categoriasPara respeta el objetivo', () => {
+  assert.deepEqual(categoriasPara({ objetivo: 'empleo' }), ['empleo', 'pasantia']);
+  assert.deepEqual(categoriasPara({ objetivo: 'voluntariado' }), ['voluntariado']);
+});
+
+test('normalizer: heuristica arma oferta desde titulo de Exa', () => {
+  const lotes = normalizarHeuristico(
+    {
+      titulo: 'Analista de desarrollo de sistemas — Santa Cruz',
+      url: 'https://trabajito.com.bo/trabajo/analista-de-desarrollo',
+      texto: 'Buscamos analista con Excel para Santa Cruz.',
+      fuente: { nombre: 'Exa', url: 'https://trabajito.com.bo/trabajo/analista-de-desarrollo' }
+    },
+    ['empleo', 'pasantia']
+  );
+
+  assert.equal(lotes.length, 1);
+  assert.equal(lotes[0].categoria, 'empleo');
+  assert.match(lotes[0].titulo, /Analista/);
+});
+
+test('normalizer: heuristica ignora listados genericos', () => {
+  const lotes = normalizarHeuristico(
+    {
+      titulo: 'Ofertas de trabajo',
+      url: 'https://www.computrabajo.com.bo/trabajo-de-pasantias',
+      texto: 'listado',
+      fuente: { nombre: 'Computrabajo', url: 'https://www.computrabajo.com.bo/trabajo-de-pasantias' }
+    },
+    ['empleo']
+  );
+  assert.equal(lotes.length, 0);
+});
+
+test('matcher: heuristica da puntaje usable sin LLM', () => {
+  const evalucion = evaluarHeuristico(
+    { carrera: 'Sistemas', ubicacion: 'Santa Cruz', habilidades: ['Excel'] },
+    { titulo: 'Analista de sistemas Santa Cruz', descripcion: 'Se requiere Excel', skills: [] }
+  );
+  assert.ok(evalucion.compatibilidad >= 40);
+  assert.equal(evalucion.elegible, true);
 });

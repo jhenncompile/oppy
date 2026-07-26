@@ -1,5 +1,8 @@
 import { z } from 'zod';
+import { env } from '../../config/env.js';
 import { completeJson } from '../llm/index.js';
+import * as oppyClient from '../llm/oppyClient.js';
+import { perfilAOppy, oportunidadAOppy, matchingAEvaluacion } from '../llm/oppyAdapter.js';
 import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ module: 'matcher' });
@@ -50,12 +53,48 @@ Responde solo con JSON.`;
  * @param {'persona'|'organizacion'} perspectiva  A quien se le habla
  */
 export async function evaluar(perfil, oportunidad, { perspectiva = 'persona' } = {}) {
+  // Preferimos el LoRA entrenado cuando hay URL; si falla, Ollama mantiene la corrida.
+  if (env.features.oppy && perspectiva === 'persona') {
+    const desdeOppy = await evaluarConOppy(perfil, oportunidad);
+    if (desdeOppy) return desdeOppy;
+  }
+
+  return evaluarConOllama(perfil, oportunidad, perspectiva);
+}
+
+async function evaluarConOppy(perfil, oportunidad) {
+  const data = await oppyClient.match(
+    perfilAOppy(perfil),
+    oportunidadAOppy(oportunidad)
+  );
+  const evaluacion = matchingAEvaluacion(data);
+  if (!evaluacion) return null;
+
+  const validada = evaluacionSchema.safeParse(evaluacion);
+  if (!validada.success) {
+    log.warn('Matching Oppy no paso el schema', { error: validada.error.message });
+    return null;
+  }
+
+  return {
+    compatibilidad: validada.data.compatibilidad,
+    elegible: validada.data.elegible,
+    razones: validada.data.razones.map((razon) => razon.trim()),
+    brechas: validada.data.brechas.map((brecha) => brecha.trim())
+  };
+}
+
+async function evaluarConOllama(perfil, oportunidad, perspectiva) {
   const prompt = [
     'PERFIL DE LA PERSONA',
+    `Objetivo: ${perfil.objetivo ?? 'sin especificar'}`,
     `Carrera: ${perfil.carrera}`,
     `Nivel de estudios: ${perfil.nivelEstudios}`,
     `Ubicacion: ${perfil.ubicacion}`,
+    `Experiencia: ${(perfil.experiencia ?? []).join(', ') || 'sin especificar'}`,
+    `Habilidades: ${(perfil.habilidades ?? []).join(', ') || 'sin especificar'}`,
     `Intereses: ${(perfil.intereses ?? []).join(', ') || 'sin especificar'}`,
+    `Restricciones: ${(perfil.restricciones ?? []).join(', ') || 'ninguna'}`,
     `Idiomas: ${formatearIdiomas(perfil.idiomas)}`,
     '',
     'OPORTUNIDAD',
@@ -99,12 +138,78 @@ export async function evaluarSeguro(perfil, oportunidad, opciones) {
   try {
     return await evaluar(perfil, oportunidad, opciones);
   } catch (error) {
-    log.warn('Evaluacion fallida', {
-      oportunidad: oportunidad.id,
+    log.warn('Evaluacion fallida, se usa puntaje heuristic', {
+      oportunidad: oportunidad.id ?? oportunidad.titulo,
       error: error.message
     });
-    return null;
+    return evaluarHeuristico(perfil, oportunidad);
   }
+}
+
+/**
+ * Compatibilidad basica por solapamiento de palabras: permite mostrar
+ * resultados aunque Ollama no responda a tiempo en la laptop.
+ */
+export function evaluarHeuristico(perfil, oportunidad) {
+  const tokensPerfil = tokensDe([
+    perfil.carrera,
+    perfil.ubicacion,
+    ...(perfil.habilidades ?? []),
+    ...(perfil.intereses ?? []),
+    perfil.objetivo
+  ]);
+  const tokensOpp = tokensDe([
+    oportunidad.titulo,
+    oportunidad.descripcion,
+    oportunidad.elegibilidad,
+    ...(oportunidad.skills ?? [])
+  ]);
+
+  if (tokensPerfil.size === 0 || tokensOpp.size === 0) {
+    return {
+      compatibilidad: 45,
+      elegible: true,
+      razones: ['La oferta calza con lo que pediste buscar; revisá el aviso para confirmar requisitos.'],
+      brechas: []
+    };
+  }
+
+  let hits = 0;
+  for (const token of tokensPerfil) {
+    if (tokensOpp.has(token)) hits += 1;
+  }
+
+  const ratio = hits / tokensPerfil.size;
+  const compatibilidad = Math.max(35, Math.min(88, Math.round(40 + ratio * 50)));
+  const razones = hits > 0
+    ? [`Encontre solapamiento entre tu perfil y el aviso (${hits} coincidencia${hits === 1 ? '' : 's'}).`]
+    : ['Es una oferta del tipo que pediste; el modelo no pudo razonar el detalle a tiempo.'];
+
+  return {
+    compatibilidad,
+    elegible: true,
+    razones,
+    brechas: []
+  };
+}
+
+function tokensDe(valores) {
+  const stop = new Set([
+    'de', 'del', 'la', 'el', 'los', 'las', 'en', 'y', 'o', 'a', 'un', 'una',
+    'para', 'con', 'por', 'bol', 'bolivia', 'anio', 'año'
+  ]);
+  const out = new Set();
+  for (const valor of valores) {
+    if (!valor) continue;
+    const limpio = String(valor)
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase();
+    for (const parte of limpio.split(/[^a-z0-9]+/)) {
+      if (parte.length >= 3 && !stop.has(parte)) out.add(parte);
+    }
+  }
+  return out;
 }
 
 function formatearIdiomas(idiomas) {

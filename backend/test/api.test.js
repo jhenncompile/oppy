@@ -30,6 +30,7 @@ test('health responde y expone que capacidades estan activas', async () => {
   assert.equal(cuerpo.estado, 'ok');
   assert.equal(typeof cuerpo.capacidades.exa, 'boolean');
   assert.equal(typeof cuerpo.capacidades.firecrawl, 'boolean');
+  assert.equal(typeof cuerpo.capacidades.oppy, 'boolean');
 });
 
 test('una ruta inexistente devuelve 404 con forma de error consistente', async () => {

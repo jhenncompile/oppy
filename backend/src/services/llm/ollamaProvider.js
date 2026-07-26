@@ -5,11 +5,15 @@ import { AppError } from '../../utils/AppError.js';
  * Adaptador de Ollama. Es el unico archivo que sabe como habla Ollama;
  * cambiar de proveedor significa escribir otro archivo como este, no tocar
  * el resto del sistema.
+ *
+ * `think: false` es obligatorio con modelos tipo Qwen3: si no, el modelo
+ * gasta el presupuesto de tokens en "thinking" y content llega vacio o
+ * tarda minutos en un JSON de una linea.
  */
 export const ollamaProvider = {
   name: 'ollama',
 
-  async complete({ system, prompt, json = false, temperature = 0.2 }) {
+  async complete({ system, prompt, json = false, temperature = 0.2, timeoutMs = env.LLM_TIMEOUT_MS }) {
     const messages = [];
     if (system) messages.push({ role: 'system', content: system });
     messages.push({ role: 'user', content: prompt });
@@ -24,13 +28,14 @@ export const ollamaProvider = {
           messages,
           stream: false,
           format: json ? 'json' : undefined,
+          think: false,
           options: { temperature }
         }),
-        signal: AbortSignal.timeout(env.LLM_TIMEOUT_MS)
+        signal: AbortSignal.timeout(timeoutMs)
       });
     } catch (error) {
       const motivo = error.name === 'TimeoutError'
-        ? `el modelo no respondio en ${env.LLM_TIMEOUT_MS} ms`
+        ? `el modelo no respondio en ${timeoutMs} ms`
         : error.message;
       throw AppError.unavailable(`No se pudo contactar a Ollama: ${motivo}`);
     }

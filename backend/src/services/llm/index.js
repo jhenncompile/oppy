@@ -31,13 +31,20 @@ export async function complete(options) {
  * al sistema. Ante un fallo se reintenta una vez devolviendole el error al
  * modelo, que es lo que suele bastar.
  */
-export async function completeJson({ system, prompt, schema, temperature = 0.2 }) {
+export async function completeJson({
+  system,
+  prompt,
+  schema,
+  temperature = 0.2,
+  timeoutMs
+}) {
   const intentar = async (promptEfectivo) => {
     const raw = await provider.complete({
       system,
       prompt: promptEfectivo,
       json: true,
-      temperature
+      temperature,
+      timeoutMs
     });
     return schema.parse(extraerJson(raw));
   };

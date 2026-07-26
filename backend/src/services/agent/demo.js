@@ -1,15 +1,12 @@
 /**
- * Modo demo: convocatorias de ejemplo y evaluacion deterministica.
+ * Modo demo: convocatorias de ejemplo sin scraping externo.
  *
- * Existe por una razon concreta: sin claves de Exa/Firecrawl y sin un modelo
- * servido, el pipeline corre entero pero descubre cero paginas, extrae cero
- * oportunidades y produce cero matches. Todo funciona y no se ve nada — que es
- * indistinguible de estar roto cuando lo que se quiere es revisar el diseno.
+ * Existe por una razon concreta: sin claves de Exa/Firecrawl el pipeline
+ * descubre cero paginas y produce cero matches — indistinguible de estar
+ * roto cuando lo que se quiere es revisar el diseno o probar Ollama.
  *
- * Con DEMO_MODE=true se reemplazan las DOS piezas que dependen del exterior:
- *
- *   - descubrimiento + normalizacion  ->  este catalogo
- *   - evaluacion de compatibilidad    ->  `evaluarDemo`
+ * Con DEMO_MODE=true se reemplaza el descubrimiento + normalizacion por este
+ * catalogo. El scoring sigue yendo al LLM (Ollama / Oppy) via `evaluarSeguro`.
  *
  * Todo lo demas es el camino real: el indice compartido, la deduplicacion por
  * hash, el semaforo de confianza, la persistencia de matches y la narracion en

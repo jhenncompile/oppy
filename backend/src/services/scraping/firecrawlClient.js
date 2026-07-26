@@ -1,5 +1,6 @@
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
+import { fetchConReintentos, motivoFetch } from '../../utils/fetchConReintentos.js';
 
 const log = logger.child({ module: 'firecrawl' });
 const ENDPOINT = 'https://api.firecrawl.dev/v1/scrape';
@@ -18,19 +19,23 @@ export async function extraer(url) {
   }
 
   try {
-    const response = await fetch(ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${env.FIRECRAWL_API_KEY}`
+    const response = await fetchConReintentos(
+      ENDPOINT,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.FIRECRAWL_API_KEY}`
+        },
+        body: JSON.stringify({
+          url,
+          formats: ['markdown'],
+          onlyMainContent: true
+        }),
+        signal: AbortSignal.timeout(45_000)
       },
-      body: JSON.stringify({
-        url,
-        formats: ['markdown'],
-        onlyMainContent: true
-      }),
-      signal: AbortSignal.timeout(45_000)
-    });
+      { intentos: 3, esperaMs: 900 }
+    );
 
     if (!response.ok) {
       log.warn('Firecrawl respondio con error', { status: response.status, url });
@@ -52,7 +57,7 @@ export async function extraer(url) {
       publicadoEn: null
     };
   } catch (error) {
-    log.warn('Extraccion fallida', { url, error: error.message });
+    log.warn('Extraccion fallida', { url, error: motivoFetch(error) });
     return null;
   }
 }

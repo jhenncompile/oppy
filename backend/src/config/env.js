@@ -19,6 +19,10 @@ const schema = z.object({
   OLLAMA_MODEL: z.string().default('llama3.1:8b'),
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
 
+  // URL publica de serve_oppy_api.py (Colab+ngrok, VPS GPU, etc.).
+  // Si esta set, normalize/match usan el LoRA y caen a Ollama si falla.
+  OPPY_API_URL: z.string().default(''),
+
   EXA_API_KEY: z.string().default(''),
   FIRECRAWL_API_KEY: z.string().default(''),
 
@@ -29,8 +33,12 @@ const schema = z.object({
   NOTIF_MATCH_THRESHOLD: z.coerce.number().int().min(0).max(100).default(80),
   NOTIF_MAX_POR_USUARIO: z.coerce.number().int().positive().default(3),
 
-  EXA_RESULTS_PER_QUERY: z.coerce.number().int().positive().default(8),
-  MAX_SCORING_PER_RUN: z.coerce.number().int().positive().default(40),
+  EXA_RESULTS_PER_QUERY: z.coerce.number().int().positive().default(4),
+  // Tope de paginas a estructurar por corrida: sin esto, 20+ llamadas
+  // secuenciales a Ollama dejan la UI en "Leyendo y estructurando…" minutos.
+  MAX_NORMALIZE_PER_RUN: z.coerce.number().int().positive().default(6),
+  NORMALIZE_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
+  MAX_SCORING_PER_RUN: z.coerce.number().int().positive().default(20),
 
   CRON_ENABLED: z.enum(['true', 'false']).default('false'),
   CRON_SCHEDULE: z.string().default('0 6 * * *'),
@@ -59,10 +67,21 @@ export const env = {
   databaseSsl: raw.DATABASE_SSL === 'true',
   cronEnabled: raw.CRON_ENABLED === 'true',
   demoMode: raw.DEMO_MODE === 'true',
-  /** Las capacidades opcionales se degradan solas si falta la key. */
+  /** Las capacidades opcionales se degradan solas si falta la key / URL. */
   features: {
     exa: raw.EXA_API_KEY.length > 0,
     firecrawl: raw.FIRECRAWL_API_KEY.length > 0,
-    zavu: raw.ZAVUDEV_API_KEY.length > 0
+    zavu: raw.ZAVUDEV_API_KEY.length > 0,
+    oppy: looksLikeUrl(raw.OPPY_API_URL)
   }
 };
+
+function looksLikeUrl(value) {
+  if (!value || value.length < 8) return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
