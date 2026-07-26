@@ -33,18 +33,33 @@ const CATEGORIA_A_TIPO = {
 
 /** Perfil del producto → user del schema de matching Oppy. */
 export function perfilAOppy(perfil) {
+  const feedback = perfil.feedback ?? null;
+  const interests = [
+    ...(perfil.objetivo ? [perfil.objetivo] : []),
+    ...(perfil.objetivos ?? []),
+    ...(perfil.intereses ?? []),
+    ...(perfil.experiencia ?? []),
+    ...(feedback?.skillsPreferidas ?? []),
+    ...(feedback?.categoriasPreferidas ?? []).map((c) => `prefiere_${c}`),
+    ...(feedback?.categoriasEvitadas ?? []).map((c) => `evitar_${c}`),
+    ...(feedback?.titulosPreferidos ?? []).map((t) => `gusto:${String(t).slice(0, 60)}`),
+    ...(feedback?.titulosEvitados ?? []).map((t) => `evitar:${String(t).slice(0, 60)}`)
+  ];
+
   return {
     career: perfil.carrera ?? '',
-    skills: perfil.habilidades ?? [],
-    interests: [
-      ...(perfil.objetivo ? [perfil.objetivo] : []),
-      ...(perfil.objetivos ?? []),
-      ...(perfil.intereses ?? []),
-      ...(perfil.experiencia ?? [])
-    ],
+    skills: uniq([
+      ...(perfil.habilidades ?? []),
+      ...(feedback?.skillsPreferidas ?? [])
+    ]).slice(0, 20),
+    interests: uniq(interests).slice(0, 24),
     location: perfil.ubicacion ?? null,
     level: perfil.nivelEstudios ?? null
   };
+}
+
+function uniq(valores) {
+  return [...new Set(valores.filter((v) => typeof v === 'string' && v.trim().length > 0))];
 }
 
 /** Oportunidad del producto → opportunity del schema Oppy. */
@@ -65,21 +80,33 @@ export function oportunidadAOppy(oportunidad) {
 
 /**
  * Extraccion LoRA → campos crudos del normalizer (antes de aDominio).
+ * El dataset de extraction NO usa `title`; usa type/area/organization/deadline.
+ * Sintetizamos un titulo usable para persistir.
  * Devuelve null si falta lo minimo para persistir.
  */
 export function extraccionACruda(data, classification = null) {
   if (!data || typeof data !== 'object') return null;
 
-  const titulo = (data.title ?? data.titulo ?? '').toString().trim();
-  if (titulo.length < 3) return null;
-
   const tipo = classification?.type ?? data.type ?? data.categoria ?? 'empleo_junior';
   const categoria = TIPO_A_CATEGORIA[tipo] ?? 'empleo';
+
+  const titulo = (
+    data.title
+    ?? data.titulo
+    ?? [data.organization, data.area || categoria].filter(Boolean).join(' — ')
+    ?? categoria
+  ).toString().trim();
+
+  if (titulo.length < 3) return null;
 
   return {
     titulo,
     categoria,
-    descripcion: data.description ?? data.descripcion ?? data.area ?? null,
+    descripcion: data.description
+      ?? data.descripcion
+      ?? data.area
+      ?? data.organization
+      ?? null,
     elegibilidad: Array.isArray(data.requirements)
       ? data.requirements.join('; ')
       : (data.elegibilidad ?? null),

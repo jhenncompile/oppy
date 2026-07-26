@@ -98,6 +98,16 @@ export const sources = [
     oficial: false,
     activa: true,
     verificada: true
+  },
+  {
+    id: 'busqueda-cursos-bo',
+    nombre: 'Busqueda semantica — cursos y certificaciones',
+    estrategia: ESTRATEGIAS.BUSQUEDA,
+    categorias: ['curso', 'evento', 'voluntariado', 'programa_social'],
+    oficial: false,
+    activa: true,
+    verificada: true,
+    dominiosPreferidos: ['gob.bo', 'edu.bo', 'org.bo']
   }
 ];
 

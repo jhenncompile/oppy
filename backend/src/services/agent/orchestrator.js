@@ -14,7 +14,7 @@ export const OBJETIVO_A_CATEGORIAS = {
   empleo: ['empleo', 'pasantia'],
   reinsercion: ['empleo', 'curso', 'pasantia'],
   beca: ['beca', 'intercambio'],
-  curso: ['curso'],
+  curso: ['curso', 'evento'],
   crecimiento: ['empleo', 'curso', 'pasantia'],
   voluntariado: ['voluntariado'],
   evento: ['evento', 'concurso']

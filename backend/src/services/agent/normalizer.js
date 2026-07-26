@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { env } from '../../config/env.js';
 import { completeJson } from '../llm/index.js';
+import * as oppyClient from '../llm/oppyClient.js';
+import { extraccionACruda } from '../llm/oppyAdapter.js';
 import { clasificar, hostnameDe } from '../scoring/trust.js';
 import { logger } from '../../utils/logger.js';
 
@@ -44,7 +46,8 @@ Reglas estrictas:
 - Responde solo con JSON.`;
 
 /**
- * Convierte un documento crudo en oportunidades normalizadas via Ollama.
+ * Convierte un documento crudo en oportunidades normalizadas.
+ * Con OPPY_API_URL: solo el agente Oppy (Modal/LoRA). Sin URL: Ollama.
  *
  * Nunca lanza: un documento ilegible no puede tumbar la corrida.
  *
@@ -52,6 +55,19 @@ Reglas estrictas:
  * @param {{ categorias?: string[], timeoutMs?: number }} [opciones]
  */
 export async function normalizar(documento, opciones = {}) {
+  if (env.features.oppy) {
+    const desdeOppy = await normalizarConOppy(documento);
+    const filtradas = filtrarPorCategorias(desdeOppy, opciones.categorias);
+    if (desdeOppy.length > 0 && filtradas.length === 0) {
+      log.info('Oppy extrajo fuera de categoria; se descarta (sin Ollama)', {
+        url: documento.url,
+        categorias: opciones.categorias,
+        obtenidas: desdeOppy.map((o) => o.categoria)
+      });
+    }
+    return filtradas;
+  }
+
   const lotes = await normalizarConOllama(documento, opciones);
   return filtrarPorCategorias(lotes, opciones.categorias);
 }
@@ -60,6 +76,57 @@ function filtrarPorCategorias(oportunidades, categorias) {
   if (!categorias?.length) return oportunidades;
   const permitidas = new Set(categorias);
   return oportunidades.filter((o) => permitidas.has(o.categoria));
+}
+
+async function normalizarConOppy(documento) {
+  const texto = [
+    documento.titulo ? `Titulo: ${documento.titulo}` : null,
+    `URL: ${documento.url}`,
+    documento.texto.slice(0, 4000)
+  ].filter(Boolean).join('\n\n');
+
+  try {
+    // Secuencial: en Modal una sola GPU; Promise.all dispara extract+classify
+    // a la vez y el proxy cancela uno con 408 "Missing request...".
+    const extracted = await oppyClient.extract(texto);
+    if (!extracted) {
+      log.warn('Oppy extract vacio', { url: documento.url });
+      return [];
+    }
+
+    let classified = null;
+    if (!extracted.type && !extracted.categoria) {
+      classified = await oppyClient.classify(texto);
+    }
+
+    const cruda = extraccionACruda(extracted, classified);
+    if (!cruda) {
+      log.warn('Oppy extract no mapeable a dominio', {
+        url: documento.url,
+        keys: Object.keys(extracted)
+      });
+      return [];
+    }
+
+    const validada = oportunidadSchema.safeParse(cruda);
+    if (!validada.success) {
+      log.warn('Extraccion Oppy no paso el schema', {
+        url: documento.url,
+        error: validada.error.message,
+        cruda
+      });
+      return [];
+    }
+
+    const dominio = aDominio(validada.data, documento);
+    return dominio ? [dominio] : [];
+  } catch (error) {
+    log.warn('Normalizacion Oppy fallida', {
+      url: documento.url,
+      error: error.message
+    });
+    return [];
+  }
 }
 
 async function normalizarConOllama(documento, opciones = {}) {
