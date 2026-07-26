@@ -4,7 +4,7 @@ import { Button } from '../components/Button.jsx';
 import { TrustBadge } from '../components/TrustBadge.jsx';
 import { usePerfil } from '../hooks/usePerfil.jsx';
 import { useMatchesCompartidos, usePropiasCompartidas } from '../Layout.jsx';
-import { filasConFecha } from '../hooks/usePropias.js';
+import { filasConFecha, sinFechasPeroConOportunidades } from '../hooks/usePropias.js';
 import { Icono } from '../components/Icono.jsx';
 
 /**
@@ -88,6 +88,7 @@ export function Calendario() {
 
   const filas = filasConFecha({ matches, propias });
   const grupos = agrupar(filas);
+  const haySinFecha = sinFechasPeroConOportunidades({ matches, propias });
 
   return (
     <Panel>
@@ -98,10 +99,15 @@ export function Calendario() {
       {filas.length === 0 ? (
         <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-6 text-center">
           <Icono nombre="calendario" tamanio={40} className="text-ink-secondary" />
-          <p className="text-lg font-medium text-ink">No tienes fechas por delante.</p>
+          <p className="text-lg font-medium text-ink">
+            {haySinFecha
+              ? 'Todavia no hay fechas de cierre'
+              : 'No tienes fechas por delante.'}
+          </p>
           <p className="text-sm text-ink-secondary">
-            Aca aparecen los cierres de las oportunidades que vayas guardando y de
-            las que anotes, ordenados por lo que se viene primero.
+            {haySinFecha
+              ? 'Tus oportunidades aun no tienen plazo publicado (o no lo pudimos leer). Anota una fecha en Seguimiento → Agregar, o espera a convocatorias con deadline.'
+              : 'Aca aparecen los cierres de las oportunidades recomendadas y de las que anotes, ordenados por lo que se viene primero.'}
           </p>
           <Button variante="primario" onClick={() => navegar('/oportunidades')}>
             <Icono nombre="brujula" tamanio={16} />

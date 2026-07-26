@@ -6,10 +6,8 @@ const AccesoContexto = createContext(null);
 /**
  * Acceso por codigo, sin clave.
  *
- * El backend todavia no existe (ver docs/12-auth.md). Este proveedor pregunta
- * una sola vez si la capacidad esta disponible y, si no lo esta, deja todo
- * apagado: la interfaz no muestra nada relacionado con acceso y el producto
- * sigue funcionando exactamente igual que hoy.
+ * El backend responde GET /auth/estado. Sin Zavu, en development el acceso
+ * sigue disponible y el codigo se imprime en los logs (AUTH_DEV_LOG_CODE).
  *
  * Esa deteccion por 404 es a proposito. Un flag de entorno habria que
  * acordarlo, documentarlo y acordarse de encenderlo; el 404 se resuelve solo el

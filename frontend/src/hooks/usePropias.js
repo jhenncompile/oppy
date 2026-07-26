@@ -96,16 +96,21 @@ export const propiaActiva = (propia) =>
  * a nadie del lado de la pantalla: lo que importa es que algo cierra un dia.
  */
 export function filasConFecha({ matches = [], propias = [] }) {
-  const deMatches = matches.filter(enSeguimiento).map((match) => ({
-    clave: `match-${match.id}`,
-    titulo: match.oportunidad.titulo,
-    subtitulo: match.oportunidad.fuente?.nombre ?? null,
-    fechaLimite: match.oportunidad.fechaLimite,
-    confianza: match.oportunidad.confianza,
-    rutaDetalle: `/oportunidad/${match.id}`,
-    enlace: null,
-    propia: false
-  }));
+  // Incluye recomendaciones nuevas/vistas con fecha: el calendario sirve para
+  // "que se me viene", no solo lo ya guardado en seguimiento.
+  const deMatches = matches
+    .filter((match) => match.estado !== 'descartado')
+    .map((match) => ({
+      clave: `match-${match.id}`,
+      titulo: match.oportunidad.titulo,
+      subtitulo: match.oportunidad.fuente?.nombre ?? null,
+      fechaLimite: match.oportunidad.fechaLimite,
+      confianza: match.oportunidad.confianza,
+      rutaDetalle: `/oportunidad/${match.id}`,
+      enlace: null,
+      propia: false,
+      enSeguimiento: enSeguimiento(match)
+    }));
 
   const deLibreta = propias.filter(propiaActiva).map((propia) => ({
     clave: `propia-${propia.id}`,
@@ -115,11 +120,21 @@ export function filasConFecha({ matches = [], propias = [] }) {
     confianza: null,
     rutaDetalle: null,
     enlace: propia.enlace,
-    propia: true
+    propia: true,
+    enSeguimiento: true
   }));
 
   return [...deMatches, ...deLibreta]
     .map((fila) => ({ ...fila, dias: diasRestantes(fila.fechaLimite) }))
     .filter((fila) => fila.dias !== null && fila.dias >= 0)
     .sort((a, b) => a.dias - b.dias);
+}
+
+/** Hay oportunidades activas pero ninguna con fecha usable. */
+export function sinFechasPeroConOportunidades({ matches = [], propias = [] }) {
+  const conFecha = filasConFecha({ matches, propias }).length;
+  if (conFecha > 0) return false;
+  const matchesActivos = matches.filter((m) => m.estado !== 'descartado').length;
+  const propiasActivas = propias.filter(propiaActiva).length;
+  return matchesActivos + propiasActivas > 0;
 }
