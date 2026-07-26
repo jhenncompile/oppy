@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { env } from '../../config/env.js';
 import { completeJson } from '../llm/index.js';
+import * as oppyClient from '../llm/oppyClient.js';
+import { perfilAOppy, oportunidadAOppy, matchingAEvaluacion } from '../llm/oppyAdapter.js';
 import { logger } from '../../utils/logger.js';
 
 const log = logger.child({ module: 'matcher' });
@@ -40,18 +42,76 @@ Nunca inventes requisitos que no esten en la convocatoria.
 Responde solo con JSON.`;
 
 /**
- * Evalua un par (perfil, oportunidad) usando Ollama.
- *
- * Es deliberadamente simetrico: no recibe un "usuario" ni un "candidato", sino
- * dos lados. Eso permite reusarlo tal cual para el matching inverso — una
- * empresa buscando talento — sin reescribir el motor de razonamiento.
- *
- * @param {object} perfil        Perfil de la persona
- * @param {object} oportunidad   Oportunidad normalizada
- * @param {'persona'|'organizacion'} perspectiva  A quien se le habla
+ * Evalua un par (perfil, oportunidad).
+ * Con OPPY_API_URL: solo el agente Oppy. Sin URL: Ollama.
  */
 export async function evaluar(perfil, oportunidad, { perspectiva = 'persona' } = {}) {
+  if (env.features.oppy && perspectiva === 'persona') {
+    const desdeOppy = await evaluarConOppy(perfil, oportunidad);
+    if (desdeOppy) return desdeOppy;
+    log.warn('Matching Oppy sin resultado; no se usa Ollama', {
+      oportunidadId: oportunidad.id
+    });
+    return null;
+  }
+
   return evaluarConOllama(perfil, oportunidad, perspectiva);
+}
+
+async function evaluarConOppy(perfil, oportunidad) {
+  const data = await oppyClient.match(
+    perfilAOppy(perfil),
+    oportunidadAOppy(oportunidad)
+  );
+  const evaluacion = matchingAEvaluacion(data);
+  if (!evaluacion) return null;
+
+  const ajustada = aplicarSenalesFeedback(evaluacion, perfil.feedback, oportunidad);
+
+  const validada = evaluacionSchema.safeParse(ajustada);
+  if (!validada.success) {
+    log.warn('Matching Oppy no paso el schema', { error: validada.error.message });
+    return null;
+  }
+
+  return {
+    compatibilidad: validada.data.compatibilidad,
+    elegible: validada.data.elegible,
+    razones: validada.data.razones.map((razon) => razon.trim()),
+    brechas: validada.data.brechas.map((brecha) => brecha.trim())
+  };
+}
+
+/** Ajuste deterministico con senales de usuario (guardado / descartado). */
+function aplicarSenalesFeedback(evaluacion, feedback, oportunidad) {
+  if (!feedback) return evaluacion;
+
+  let score = evaluacion.compatibilidad;
+  const razones = [...evaluacion.razones];
+  const cat = oportunidad.categoria;
+
+  if (feedback.categoriasEvitadas?.includes(cat)) {
+    score = Math.max(0, score - 25);
+    razones.push('Ajustado: descartaste oportunidades similares antes');
+  }
+  if (feedback.categoriasPreferidas?.includes(cat)) {
+    score = Math.min(100, score + 8);
+  }
+
+  const skillsOpp = new Set((oportunidad.skills ?? []).map((s) => s.toLowerCase()));
+  const overlap = (feedback.skillsPreferidas ?? []).filter((s) =>
+    skillsOpp.has(String(s).toLowerCase())
+  );
+  if (overlap.length > 0) {
+    score = Math.min(100, score + Math.min(12, overlap.length * 4));
+  }
+
+  return {
+    ...evaluacion,
+    compatibilidad: score,
+    elegible: evaluacion.elegible && score >= 30,
+    razones: razones.slice(0, 5)
+  };
 }
 
 async function evaluarConOllama(perfil, oportunidad, perspectiva) {

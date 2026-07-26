@@ -288,21 +288,23 @@ async function guardarEnIndice(oportunidades) {
  * marginal de centavos y uno de dolares por usuario.
  */
 async function puntuarParaPerfil(perfil, categorias, evaluador) {
-  const [candidatas, yaEvaluadas] = await Promise.all([
+  const [candidatas, yaEvaluadas, feedback] = await Promise.all([
     opportunityRepository.findCandidatas({
       categorias,
       limit: env.MAX_SCORING_PER_RUN
     }),
-    matchRepository.idsYaEvaluados(perfil.id)
+    matchRepository.idsYaEvaluados(perfil.id),
+    matchRepository.resumenFeedback(perfil.id)
   ]);
 
+  const perfilConSenales = { ...perfil, feedback };
   const pendientes = candidatas.filter((o) => !yaEvaluadas.has(o.id));
 
   const evaluaciones = await mapExitosos(
     pendientes,
     CONCURRENCIA_SCORING,
     async (oportunidad) => {
-      const evaluacion = await evaluador(perfil, oportunidad);
+      const evaluacion = await evaluador(perfilConSenales, oportunidad);
       if (!evaluacion) return null;
 
       return matchRepository.upsert({

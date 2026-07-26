@@ -97,3 +97,36 @@ export async function idsYaEvaluados(userId) {
   );
   return new Set(rows.map((row) => row.opportunity_id));
 }
+
+/**
+ * Senales de usuario para alimentar al agente Oppy en el proximo match.
+ * Preferidas = guardado / en seguimiento; evitadas = descartado.
+ */
+export async function resumenFeedback(userId, { limit = 30 } = {}) {
+  const { rows } = await query(
+    `SELECT m.estado, o.categoria, o.skills, o.titulo
+     FROM matches m
+     JOIN opportunities o ON o.id = m.opportunity_id
+     WHERE m.user_id = $1
+       AND m.estado IN (
+         'guardado', 'preparando', 'aplicada', 'entrevista',
+         'finalizada', 'descartado'
+       )
+     ORDER BY m.updated_at DESC
+     LIMIT $2`,
+    [userId, limit]
+  );
+
+  const positivos = rows.filter((row) => row.estado !== 'descartado');
+  const negativos = rows.filter((row) => row.estado === 'descartado');
+
+  const uniq = (valores) => [...new Set(valores.filter(Boolean))];
+
+  return {
+    skillsPreferidas: uniq(positivos.flatMap((row) => row.skills ?? [])).slice(0, 15),
+    categoriasPreferidas: uniq(positivos.map((row) => row.categoria)).slice(0, 6),
+    categoriasEvitadas: uniq(negativos.map((row) => row.categoria)).slice(0, 6),
+    titulosPreferidos: uniq(positivos.map((row) => row.titulo)).slice(0, 5),
+    titulosEvitados: uniq(negativos.map((row) => row.titulo)).slice(0, 5)
+  };
+}

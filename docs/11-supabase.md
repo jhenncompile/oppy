@@ -154,6 +154,26 @@ llena una y la API lee otra vacía.
 
 ---
 
+## Feedback loop → agente Oppy
+
+Cuando una persona **guarda** o **descarta** una recomendación (`PATCH /matches/:id`),
+esas señales quedan en `matches` + `events`. En la siguiente corrida del agente:
+
+1. `matchRepository.resumenFeedback(userId)` lee preferencias y rechazos.
+2. `perfilAOppy` las mete en `skills` / `interests` del payload de `/v1/match`.
+3. `matcher.aplicarSenalesFeedback` ajusta el score (±) según categoría/skills.
+
+Para reentrenar el LoRA con datos reales:
+
+```bash
+cd backend
+node scripts/export-feedback-jsonl.js ../oppy-datasets/feedback/matches.jsonl
+```
+
+Ese JSONL se puede mezclar con `oppy-datasets/training/matching.jsonl`.
+
+---
+
 ## Verificación final
 
 Cinco consultas en el SQL Editor. Si las cinco dan lo esperado, la base quedó
