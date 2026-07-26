@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
-import { validarBody, validarQuery } from '../middleware/validate.js';
+import { validarBody, validarQuery, validarParamUuid } from '../middleware/validate.js';
 import * as matchRepository from '../repositories/matchRepository.js';
 import * as eventRepository from '../repositories/eventRepository.js';
 
@@ -40,6 +40,7 @@ matchesRouter.get(
  */
 matchesRouter.patch(
   '/:id',
+  validarParamUuid(),
   validarBody(estadoSchema),
   asyncHandler(async (req, res) => {
     const match = await matchRepository.actualizarEstado(req.params.id, req.body.estado);

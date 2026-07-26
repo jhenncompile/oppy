@@ -177,6 +177,21 @@ BEGIN
   END IF;
 END $$;
 
+-- `RENAME COLUMN` no renombra el CHECK autogenerado, asi que una base migrada
+-- y una recien creada terminaban con nombres distintos para la misma regla. No
+-- rompe nada hoy, pero un DROP CONSTRAINT escrito contra la base nueva fallaria
+-- en produccion.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'matches_match_score_check' AND conrelid = 'matches'::regclass
+  ) THEN
+    ALTER TABLE matches
+      RENAME CONSTRAINT matches_match_score_check TO matches_compatibilidad_check;
+  END IF;
+END $$;
+
 -- por_que_calza (prosa) -> razones (arreglo). El texto que ya existia se
 -- conserva como un unico elemento: perderlo obligaria a repuntuar todo.
 DO $$

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
-import { validarBody } from '../middleware/validate.js';
+import { validarBody, validarParamUuid } from '../middleware/validate.js';
 import * as userRepository from '../repositories/userRepository.js';
 
 export const profilesRouter = Router();
@@ -64,6 +64,7 @@ profilesRouter.post(
 
 profilesRouter.get(
   '/:id',
+  validarParamUuid(),
   asyncHandler(async (req, res) => {
     const perfil = await userRepository.findById(req.params.id);
     if (!perfil) throw AppError.notFound('Perfil no encontrado');
@@ -77,6 +78,7 @@ profilesRouter.get(
  */
 profilesRouter.patch(
   '/:id/visibilidad',
+  validarParamUuid(),
   validarBody(visibilidadSchema),
   asyncHandler(async (req, res) => {
     const perfil = await userRepository.setVisibilidadEmpresas(

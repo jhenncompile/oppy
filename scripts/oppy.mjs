@@ -195,7 +195,7 @@ async function preparar() {
 
   // 7. Notificaciones -------------------------------------------------------
   titulo('Revisando las notificaciones');
-  revisarZavu(leerEnv(envBackend));
+  await revisarZavu(leerEnv(envBackend));
 
   console.log(`\n${c.verde('Entorno listo.')} Ahora las opciones 2 y 3, cada una en su terminal.`);
 }
@@ -319,18 +319,59 @@ async function revisarOllama({ OLLAMA_URL = 'http://localhost:11434', OLLAMA_MOD
  * Zavu no bloquea nada: sin clave, el modulo de notificaciones se degrada solo
  * y registra el intento como fallido, igual que Exa y Firecrawl. Pero conviene
  * decirlo fuerte, porque es un entregable del track y es facil olvidarlo.
+ *
+ * No alcanza con mirar si la variable esta escrita: una clave vencida o una
+ * cuenta sin saldo se ven exactamente igual que una que funciona, y el fallo
+ * recien aparece cuando el cron intenta avisar. Por eso se consulta la cuenta —
+ * `me` y `balance` no envian nada.
  */
-function revisarZavu({ ZAVUDEV_API_KEY = '', NOTIF_MATCH_THRESHOLD = '80' }) {
-  if (ZAVUDEV_API_KEY.length > 0) {
-    ok(`Zavu configurado, umbral de aviso en ${NOTIF_MATCH_THRESHOLD}%`);
-    nota('para probar un envio real: opcion 4 del menu');
+async function revisarZavu({ ZAVUDEV_API_KEY = '', NOTIF_MATCH_THRESHOLD = '80' }) {
+  if (ZAVUDEV_API_KEY.length === 0) {
+    aviso('ZAVUDEV_API_KEY vacia: no se envian notificaciones.');
+    nota('El resto de Oppy funciona igual; los intentos quedan como fallidos');
+    nota('en la tabla `notificaciones`.');
+    nota('Conseguila en https://zavu.dev y ponela en backend/.env');
     return;
   }
 
-  aviso('ZAVUDEV_API_KEY vacia: no se envian notificaciones.');
-  nota('El resto de Oppy funciona igual; los intentos quedan como fallidos');
-  nota('en la tabla `notificaciones`.');
-  nota('Conseguila en https://zavu.dev y ponela en backend/.env');
+  const require = createRequire(join(SERVICIOS.backend.dir, 'package.json'));
+
+  let cliente;
+  try {
+    const modulo = require('@zavudev/sdk');
+    const Zavudev = modulo.default ?? modulo;
+    cliente = new Zavudev({ apiKey: ZAVUDEV_API_KEY });
+  } catch {
+    aviso('El SDK de Zavu no esta instalado. Volve a correr esta opcion.');
+    return;
+  }
+
+  let cuenta;
+  try {
+    cuenta = await cliente.me.retrieve();
+  } catch (fallo) {
+    aviso(`La clave de Zavu no funciona — ${fallo.message}`);
+    nota('Revisala en https://zavu.dev y actualiza backend/.env');
+    return;
+  }
+
+  const modo = cuenta?.isTestMode ? 'modo prueba' : 'modo real';
+  ok(`Zavu responde (${cuenta?.team?.name ?? 'sin equipo'}, ${modo})`);
+  nota(`Se avisa a partir de ${NOTIF_MATCH_THRESHOLD}% de compatibilidad`);
+
+  // El saldo es lo que mas silenciosamente rompe una demo: la clave es valida,
+  // la configuracion es correcta, y el envio falla igual.
+  try {
+    const saldo = await cliente.balance.retrieve();
+    if (typeof saldo?.balance === 'number' && saldo.balance <= 0 && !saldo.creditLimit) {
+      aviso(`Saldo en ${saldo.balance} ${(saldo.currency ?? '').toUpperCase()}: los envios pueden fallar.`);
+      nota('Cargar credito antes de demostrar las notificaciones en vivo.');
+    }
+  } catch {
+    // El saldo es informativo: no saberlo no invalida la configuracion.
+  }
+
+  nota('Para confirmar con un envio real: opcion 4 del menu');
 }
 
 // =========================================================================
@@ -395,6 +436,39 @@ async function correrAgente() {
 }
 
 // =========================================================================
+// Opcion 6 — Limpiar los datos de ejemplo
+// =========================================================================
+
+/**
+ * El catalogo de demo entra al indice compartido por la misma puerta que lo
+ * descubierto, con nombres de fuente autenticos y semaforo real. Una vez
+ * adentro es indistinguible de una convocatoria de verdad, y apagar DEMO_MODE
+ * no lo borra.
+ *
+ * Hay que correr esto antes de cualquier demo con fuentes reales.
+ */
+async function limpiarDemo() {
+  if (!existsSync(join(SERVICIOS.backend.dir, '.env'))) {
+    error('Falta backend/.env. Corre primero la opcion 1.');
+    return;
+  }
+
+  console.log(`\n${c.fuerte('Limpiar datos de ejemplo')}`);
+
+  // Primero se muestra que se va a borrar. Borrar sin mirar es como se pierde
+  // el indice entero cinco minutos antes de un pitch.
+  await ejecutar('node', ['scripts/limpiar-demo.js'], SERVICIOS.backend.dir);
+
+  const respuesta = await preguntar('Confirmas el borrado? (s/N)', { defecto: 'n' });
+  if (!respuesta.toLowerCase().startsWith('s')) {
+    nota('No se borro nada.');
+    return;
+  }
+
+  await ejecutar('node', ['scripts/limpiar-demo.js', '--si'], SERVICIOS.backend.dir);
+}
+
+// =========================================================================
 // Opciones 2 y 3 — Levantar cada servicio
 // =========================================================================
 
@@ -442,7 +516,8 @@ const OPCIONES = {
   2: { alias: 'backend', texto: 'Levantar el backend', detalle: 'http://localhost:3001', accion: () => levantar('backend') },
   3: { alias: 'frontend', texto: 'Levantar el frontend', detalle: 'http://localhost:5173', accion: () => levantar('frontend') },
   4: { alias: 'notificacion', texto: 'Probar una notificacion', detalle: 'envio real por Zavu', accion: probarNotificacion },
-  5: { alias: 'agente', texto: 'Correr el agente ahora', detalle: 'la misma corrida que el cron', accion: correrAgente }
+  5: { alias: 'agente', texto: 'Correr el agente ahora', detalle: 'la misma corrida que el cron', accion: correrAgente },
+  6: { alias: 'limpiar', texto: 'Limpiar datos de ejemplo', detalle: 'saca el catalogo demo del indice', accion: limpiarDemo }
 };
 
 function encabezado() {

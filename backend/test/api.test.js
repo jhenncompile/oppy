@@ -136,3 +136,32 @@ test('el stream de una corrida terminada cierra de inmediato', async () => {
   assert.match(texto, /event: fin/);
   assert.match(texto, /completada/);
 });
+
+/**
+ * Regresion: un id mal formado en la ruta llegaba hasta Postgres, que lo
+ * rechazaba con "invalid input syntax for type uuid" y salia como 500 — o sea,
+ * un pedido mal escrito se reportaba como si el servidor se hubiera caido.
+ */
+test('un id que no es UUID devuelve 400, no 500', async () => {
+  for (const url of [
+    `${base}/api/profiles/basura`,
+    `${base}/api/matches/basura`
+  ]) {
+    const respuesta = await fetch(url, url.includes('matches')
+      ? {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estado: 'guardado' })
+        }
+      : undefined);
+
+    assert.equal(respuesta.status, 400, url);
+    const cuerpo = await respuesta.json();
+    assert.equal(cuerpo.error.code, 'bad_request');
+  }
+});
+
+test('un UUID bien formado pero inexistente sigue dando 404', async () => {
+  const respuesta = await fetch(`${base}/api/profiles/00000000-0000-4000-8000-000000000000`);
+  assert.equal(respuesta.status, 404);
+});

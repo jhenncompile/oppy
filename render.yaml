@@ -42,6 +42,15 @@ services:
         sync: false
       - key: FIRECRAWL_API_KEY
         sync: false
+      # Notificaciones — https://zavu.dev
+      - key: ZAVUDEV_API_KEY
+        sync: false
+      - key: NOTIF_MATCH_THRESHOLD
+        value: '80'
+      # El catalogo de ejemplo es solo para desarrollo local. Aca se deja
+      # explicito en false: una demo con datos de mentira no vale nada.
+      - key: DEMO_MODE
+        value: 'false'
 
   - type: cron
     name: oppy-descubrimiento
@@ -69,3 +78,10 @@ services:
         sync: false
       - key: FIRECRAWL_API_KEY
         sync: false
+      # El cron es quien notifica: sin esta clave descubre pero no avisa.
+      - key: ZAVUDEV_API_KEY
+        sync: false
+      - key: NOTIF_MATCH_THRESHOLD
+        value: '80'
+      - key: DEMO_MODE
+        value: 'false'
