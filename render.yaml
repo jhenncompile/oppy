@@ -1,44 +1,15 @@
-# Infraestructura de Oppy en Render.
+# Blueprint GRATIS de Oppy en Render.
 #
-# Tres servicios y una base: el dashboard (estatico), la API (que ademas expone
-# el stream de progreso), un cron job que corre el MISMO pipeline en un proceso
-# aparte, y Postgres.
+# - Front: static (siempre gratis)
+# - API: plan free (se duerme ~15 min sin trafico; cold start ~30-60s)
+# - DB: NO se provisiona aca — usa tu Supabase (ya la tenes)
+# - Cron aparte: NO (es de pago). Opcional: CRON_ENABLED=true en la API
+#   (solo corre si el servicio esta despierto)
 #
-# TODO EN LA MISMA REGION, y no por prolijidad: es la unica razon por la que
-# tener la base aca es mas rapido que Supabase. Con la base y la API en el mismo
-# datacenter, cada consulta cuesta menos de un milisegundo contra las decenas
-# que cuesta salir a internet. Una corrida del agente hace muchas consultas, asi
-# que eso se multiplica. Si la base queda en otra region, esto es MAS LENTO que
-# Supabase y encima se paga.
-#
-# El cron embebido en la API (CRON_ENABLED=true) y este cron job son
-# alternativas, no complementos: activar los dos duplicaria el descubrimiento.
-#
-# La base se provisiona ACA y ya no en Supabase. El motivo es latencia: el
-# pipeline hace muchas consultas por corrida y salir a otro proveedor en cada
-# una se nota. docs/11-supabase.md queda como referencia de la configuracion
-# anterior — si algun dia se vuelve, ahi esta.
-#
-# Migrar es correr `npm run migrate` contra la nueva DATABASE_URL: el esquema es
-# idempotente y se crea entero. Los datos NO se copian solos; para la demo se
-# regeneran con `npm run seed` y una corrida del agente.
-
-# La base. El indice de oportunidades es compartido, asi que la API y el cron
-# apuntan a la MISMA: es lo que hace que descubrir cueste una vez para todos y
-# no una vez por persona.
-databases:
-  - name: oppy-db
-    databaseName: oppy
-    user: oppy
-    # 1GB alcanza de sobra: lo que se guarda son convocatorias y perfiles, texto
-    # corto. Lo que consume una base no es el tamanio del dato sino la cantidad
-    # de conexiones, y aca hay dos servicios.
-    plan: basic-256mb
-    region: oregon
+# Tradeoff del free: la primera visita tras dormir puede tardar un minuto.
+# Para demo en vivo, abre /health 1-2 min antes.
 
 services:
-  # El dashboard. Es un build estatico de Vite, asi que no duerme como un
-  # servicio web y no tiene arranque en frio.
   - type: web
     name: oppy-web
     runtime: static
@@ -46,13 +17,10 @@ services:
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
     envVars:
-      # La URL de la API con /api al final. Se completa DESPUES de desplegar
-      # oppy-api, porque recien ahi existe el dominio.
+      # Despues de crear oppy-api: https://oppy-api.onrender.com/api
       - key: VITE_API_URL
         sync: false
     routes:
-      # Sin esto, entrar directo a /oportunidades o refrescar da 404: el router
-      # vive en el navegador y Render busca un archivo que no existe.
       - type: rewrite
         source: /*
         destination: /index.html
@@ -61,11 +29,7 @@ services:
     name: oppy-api
     region: oregon
     runtime: node
-    # Starter y no free A PROPOSITO: un servicio gratuito se duerme por
-    # inactividad y tarda cerca de un minuto en despertar. Si alguien abre el
-    # dashboard en frio, ve una pantalla colgada y no un agente trabajando.
-    # Es el unico costo del proyecto que compra algo que se nota.
-    plan: starter
+    plan: free
     rootDir: backend
     buildCommand: npm ci
     startCommand: npm start
@@ -73,91 +37,29 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # La cadena INTERNA de la base de arriba. Render la inyecta sola: no se
-      # copia a mano y no es un secreto que administrar. La interna ademas no
-      # sale a internet, que es de donde viene la mejora de latencia.
+      # Pegar el Session pooler de Supabase (el mismo que usas en local).
       - key: DATABASE_URL
-        fromDatabase:
-          name: oppy-db
-          property: connectionString
-      # false porque la conexion interna no cruza la red publica. Ponerlo en
-      # true no la hace mas segura, solo agrega handshake a cada conexion.
+        sync: false
       - key: DATABASE_SSL
-        value: 'false'
-      # El cron vive en su propio servicio, no dentro de la API.
+        value: 'true'
+      # Cron embebido: sin servicio cron de pago. Con free, solo corre si
+      # alguien desperto la API recientemente.
       - key: CRON_ENABLED
-        value: 'false'
+        value: 'true'
+      - key: CRON_SCHEDULE
+        value: '0 6 * * *'
       - key: CORS_ORIGIN
         sync: false
-      # Agente Oppy en Modal (unico LLM en produccion). Obligatoria.
-      # Ejemplo: https://pvalencia--oppy-api-oppyservice-web.modal.run
+      # Agente Modal (obligatorio en produccion)
       - key: OPPY_API_URL
         sync: false
       - key: EXA_API_KEY
         sync: false
       - key: FIRECRAWL_API_KEY
         sync: false
-      # Notificaciones — https://zavu.dev
-      - key: ZAVUDEV_API_KEY
-        sync: false
-      - key: NOTIF_MATCH_THRESHOLD
-        value: '80'
-      # El catalogo de ejemplo es solo para desarrollo local. Aca se deja
-      # explicito en false: una demo con datos de mentira no vale nada.
-      - key: DEMO_MODE
-        value: 'false'
-
-  - type: cron
-    name: oppy-descubrimiento
-    region: oregon
-    runtime: node
-    plan: starter
-    rootDir: backend
-    buildCommand: npm ci
-    # 06:00 UTC ~ 02:00 en Bolivia: fuera del horario de uso.
-    schedule: '0 6 * * *'
-    startCommand: npm run cron
-    envVars:
-      - key: NODE_ENV
-        value: production
-      # La cadena INTERNA de la base de arriba. Render la inyecta sola: no se
-      # copia a mano y no es un secreto que administrar. La interna ademas no
-      # sale a internet, que es de donde viene la mejora de latencia.
-      - key: DATABASE_URL
-        fromDatabase:
-          name: oppy-db
-          property: connectionString
-      # false porque la conexion interna no cruza la red publica. Ponerlo en
-      # true no la hace mas segura, solo agrega handshake a cada conexion.
-      - key: DATABASE_SSL
-        value: 'false'
-      # Agente Oppy en Modal (unico LLM). Obligatoria.
-      - key: OPPY_API_URL
-        sync: false
-      - key: EXA_API_KEY
-        sync: false
-      - key: FIRECRAWL_API_KEY
-        sync: false
-      # El cron es quien notifica: sin esta clave descubre pero no avisa.
       - key: ZAVUDEV_API_KEY
         sync: false
       - key: NOTIF_MATCH_THRESHOLD
         value: '80'
       - key: DEMO_MODE
         value: 'false'
-
-# SOBRE LOS PLANES
-#
-# El sitio estatico no cuesta nada y no duerme. Los otros dos van en starter por
-# una sola razon: en el plan gratuito la API se duerme por inactividad, y un
-# servicio dormido tampoco ejecuta su cron — o sea que la corrida autonoma, que
-# es la prueba de que Oppy trabaja solo, simplemente no ocurriria.
-#
-# La alternativa gratuita seria borrar `oppy-descubrimiento` y poner
-# CRON_ENABLED=true en la API para embeber el cron. Los dos son alternativas y
-# NO complementos: activar ambos duplicaria el descubrimiento y el costo del
-# indice.
-#
-# La base sigue en Supabase y no se provisiona aca. No hay motivo para moverla:
-# ya esta configurada, y una Postgres en Render gastaria credito para dar lo
-# mismo.
