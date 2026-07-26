@@ -14,9 +14,13 @@ import { Icono } from '../components/Icono.jsx';
  * calendario apretado en 360px no lo usa nadie, y lo que la persona necesita
  * saber es "que se me viene", no "que dia de la semana cae".
  *
- * Entran las dos fuentes: lo que guardo de las recomendaciones y lo que anoto
- * por su cuenta. Un plazo es un plazo — un calendario que solo conoce la mitad
- * de los compromisos de alguien no sirve para organizarse.
+ * Entran las tres fuentes: lo que guardo, lo que anoto por su cuenta y lo que
+ * Oppy le recomendo y todavia no miro. Un plazo es un plazo — un calendario que
+ * solo conoce la mitad de los compromisos de alguien no sirve para organizarse,
+ * y uno que aparece vacio despues de una corrida del agente se lee como roto.
+ *
+ * Lo sugerido se marca distinto y nunca compite con lo elegido: a igual
+ * urgencia va debajo, y no cuenta para el aviso de la navegacion.
  */
 const FORMATO = new Intl.DateTimeFormat('es-BO', {
   weekday: 'long',
@@ -100,8 +104,9 @@ export function Calendario() {
           <Icono nombre="calendario" tamanio={40} className="text-ink-secondary" />
           <p className="text-lg font-medium text-ink">No tienes fechas por delante.</p>
           <p className="text-sm text-ink-secondary">
-            Aca aparecen los cierres de las oportunidades que vayas guardando y de
-            las que anotes, ordenados por lo que se viene primero.
+            Aca aparecen los cierres de todo lo que tenga plazo: lo que te
+            recomiendo, lo que guardes y lo que anotes por tu cuenta. Ordenado
+            por lo que se viene primero.
           </p>
           <Button variante="primario" onClick={() => navegar('/oportunidades')}>
             <Icono nombre="brujula" tamanio={16} />
@@ -145,7 +150,17 @@ export function Calendario() {
                         La anotaste tu
                       </span>
                     ) : (
-                      <TrustBadge confianza={fila.confianza} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <TrustBadge confianza={fila.confianza} />
+                        {/* Una sugerencia no es un compromiso. Decirlo evita que
+                            la persona crea que se anoto en algo que no eligio. */}
+                        {fila.origen === 'sugerida' && (
+                          <span className="pill border border-line-subtle bg-surface-subtle text-ink-secondary">
+                            <Icono nombre="chispas" tamanio={13} />
+                            Sugerida
+                          </span>
+                        )}
+                      </div>
                     )}
 
                     <span

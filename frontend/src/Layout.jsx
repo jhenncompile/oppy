@@ -3,7 +3,7 @@ import { Navegacion } from './components/Navegacion.jsx';
 import { ThemeToggle } from './components/ThemeToggle.jsx';
 import { usePerfil } from './hooks/usePerfil.jsx';
 import { useMatches } from './hooks/useMatches.js';
-import { usePropias, filasConFecha } from './hooks/usePropias.js';
+import { usePropias, filasConFecha, esCompromiso } from './hooks/usePropias.js';
 import { createContext, useContext } from 'react';
 import { CIERRA_PRONTO_DIAS } from './hooks/useMatches.js';
 
@@ -39,12 +39,14 @@ export function Layout() {
 
   const conNavegacion = perfil && !SIN_NAVEGACION.includes(pathname);
 
-  // El aviso de la navegacion cuenta las dos fuentes: para la persona, que un
-  // plazo lo haya encontrado el agente o lo haya anotado ella no cambia nada.
+  // El aviso cuenta COMPROMISOS, no sugerencias: lo que la persona guardo y lo
+  // que anoto. Que el plazo lo haya encontrado el agente o lo haya anotado ella
+  // no cambia nada — lo que cambia es si lo eligio. Un numero rojo por algo que
+  // todavia no miro es apurarla por una decision que no tomo.
   const cierranPronto = filasConFecha({
     matches: matches.matches,
     propias: propias.propias
-  }).filter((fila) => fila.dias <= CIERRA_PRONTO_DIAS).length;
+  }).filter((fila) => esCompromiso(fila) && fila.dias <= CIERRA_PRONTO_DIAS).length;
 
   return (
     <PropiasContexto.Provider value={propias}>

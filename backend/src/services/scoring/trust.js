@@ -31,14 +31,43 @@ export function esDominioOficial(url) {
   );
 }
 
+/**
+ * Lleva cualquier fecha a "YYYY-MM-DD" para poder compararlas como calendario.
+ *
+ * Una cadena sin hora ("2026-07-26") se toma tal cual, sin pasarla por Date: si
+ * se parsea, JavaScript la interpreta como medianoche UTC y en Bolivia (UTC-4)
+ * eso cae el dia ANTERIOR. Un Date real — el que devuelve Postgres para una
+ * columna DATE — viene en hora local, asi que se leen sus componentes locales.
+ */
+function aFechaCalendario(valor) {
+  if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}/.test(valor)) {
+    return valor.slice(0, 10);
+  }
+
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return null;
+
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${fecha.getFullYear()}-${mes}-${dia}`;
+}
+
+/**
+ * Vencida es ANTES de hoy, nunca hoy.
+ *
+ * La comparacion se hace entre dos cadenas YYYY-MM-DD, que ordenan igual como
+ * texto que como fecha. La version anterior comparaba una fecha parseada en UTC
+ * contra la medianoche local, y en Bolivia esas cuatro horas de diferencia
+ * hacian que TODA convocatoria que cerraba hoy se marcara como vencida — el
+ * unico dia en que a alguien de verdad le urge postular.
+ */
 function yaVencio(fechaLimite) {
   if (!fechaLimite) return false;
-  const limite = new Date(fechaLimite);
-  if (Number.isNaN(limite.getTime())) return false;
 
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  return limite < hoy;
+  const limite = aFechaCalendario(fechaLimite);
+  if (!limite) return false;
+
+  return limite < aFechaCalendario(new Date());
 }
 
 export function hostnameDe(url) {

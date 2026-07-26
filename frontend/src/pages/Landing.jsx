@@ -12,6 +12,24 @@ import { usePerfil } from '../hooks/usePerfil.jsx';
  * contrario de lo que necesita alguien que entra a buscar trabajo.
  */
 
+/**
+ * Los canales que todavia no existen se muestran igual, apagados.
+ *
+ * No es decoracion: son la promesa de accesibilidad del producto. Mucha gente
+ * en Bolivia vive en el telefono y no abre una pagina web, asi que decir a
+ * donde va a llegar Oppy importa. Esconderlo hasta que este listo es decirle a
+ * quien lo necesita que no fue pensado para ella.
+ *
+ * Van desactivados y dicen "Proximamente" a proposito: prometer un canal que no
+ * responde es peor que no ofrecerlo, sobre todo para alguien que ya desconfia
+ * de las plataformas.
+ */
+const CANALES = [
+  { icono: 'enviar', texto: 'Telegram' },
+  { icono: 'mensaje', texto: 'WhatsApp' },
+  { icono: 'microfono', texto: 'Por voz' }
+];
+
 const PUNTOS = [
   {
     icono: 'lupa',
@@ -72,6 +90,23 @@ export function Landing() {
           <p className="mt-4 text-sm text-ink-secondary">
             La demo toma menos de un minuto. No pedimos CV ni documentos.
           </p>
+
+          <div className="mt-12 w-full border-t border-line-subtle pt-8">
+            <p className="text-xs text-ink-secondary">Pronto vas a poder usarme desde:</p>
+            <ul className="mt-4 flex flex-wrap justify-center gap-2">
+              {CANALES.map((canal) => (
+                <li key={canal.texto}>
+                  <span className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-line-subtle px-4 text-sm text-ink-secondary opacity-70">
+                    <Icono nombre={canal.icono} tamanio={16} />
+                    {canal.texto}
+                    <span className="rounded-full bg-surface-subtle px-2 py-0.5 text-[10px] font-medium">
+                      Proximamente
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 

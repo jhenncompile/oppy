@@ -569,3 +569,31 @@ test('los dos recordatorios se distinguen: uno lo guardo, el otro lo anoto', () 
   assert.match(guardada, /guardaste/);
   assert.match(anotada, /anotaste vos/);
 });
+
+test('confianza: lo que cierra HOY todavia no vencio', () => {
+  // Una fecha sin hora se parsea como medianoche UTC; en Bolivia eso cae el dia
+  // anterior. Comparar contra la medianoche local marcaba como vencida toda
+  // convocatoria que cerraba hoy — justo cuando mas urge postular.
+  const hoy = new Date();
+  const iso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+
+  assert.equal(clasificar({ url: 'https://ejemplo.com', fechaLimite: iso }), CONFIANZA.POR_VALIDAR);
+  assert.equal(
+    clasificar({ url: 'https://bo.usembassy.gov/x', fechaLimite: iso }),
+    CONFIANZA.VERIFICADA
+  );
+});
+
+test('confianza: acepta un Date de Postgres igual que una cadena', () => {
+  // La columna es DATE y node-postgres la devuelve como Date en hora local.
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  assert.equal(clasificar({ url: 'https://ejemplo.com', fechaLimite: hoy }), CONFIANZA.POR_VALIDAR);
+
+  const anteayer = new Date();
+  anteayer.setDate(anteayer.getDate() - 2);
+  assert.equal(
+    clasificar({ url: 'https://bo.usembassy.gov/x', fechaLimite: anteayer }),
+    CONFIANZA.DESACTUALIZADA
+  );
+});

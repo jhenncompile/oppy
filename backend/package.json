@@ -14,7 +14,8 @@
     "seed": "node src/db/seed.js",
     "cron": "node src/jobs/runner.js",
     "recordatorios": "node src/jobs/recordatoriosJob.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "agregar": "node scripts/agregar-oportunidad.js"
   },
   "dependencies": {
     "@zavudev/sdk": "^0.51.0",

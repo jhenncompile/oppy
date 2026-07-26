@@ -88,15 +88,33 @@ export const propiaActiva = (propia) =>
   propia.estado !== 'finalizada' && propia.estado !== 'descartado';
 
 /**
- * Las dos fuentes en una sola lista con fecha, para el calendario y para los
+ * Sigue siendo relevante para el calendario: la persona no la descarto y no
+ * esta cerrada.
+ *
+ * Es a proposito MAS AMPLIO que `enSeguimiento`, y esa diferencia es la que
+ * hacia que el calendario apareciera vacio: el agente deja sus recomendaciones
+ * en estado 'nuevo', y `enSeguimiento` las excluye. Con eso, alguien que
+ * acababa de correr el agente y tenia diez convocatorias con fecha veia
+ * "no tienes fechas por delante" — que se lee como que la aplicacion no
+ * funciona, no como que falta guardar algo.
+ */
+const vigenteParaCalendario = (match) =>
+  match.estado !== 'descartado' && match.estado !== 'finalizada';
+
+/**
+ * Las tres fuentes en una sola lista con fecha, para el calendario y para los
  * avisos de "cierra pronto".
  *
- * Se normaliza aca y no en cada vista porque la diferencia entre las dos formas
+ * Se normaliza aca y no en cada vista porque la diferencia entre las formas
  * — `match.oportunidad.fechaLimite` contra `propia.fechaLimite` — no le importa
  * a nadie del lado de la pantalla: lo que importa es que algo cierra un dia.
+ *
+ * Cada fila lleva `origen` para que quien la muestre pueda distinguir un
+ * compromiso que la persona tomo de una recomendacion que todavia no miro. Son
+ * cosas distintas y no deberian pesar igual.
  */
 export function filasConFecha({ matches = [], propias = [] }) {
-  const deMatches = matches.filter(enSeguimiento).map((match) => ({
+  const deMatches = matches.filter(vigenteParaCalendario).map((match) => ({
     clave: `match-${match.id}`,
     titulo: match.oportunidad.titulo,
     subtitulo: match.oportunidad.fuente?.nombre ?? null,
@@ -104,7 +122,8 @@ export function filasConFecha({ matches = [], propias = [] }) {
     confianza: match.oportunidad.confianza,
     rutaDetalle: `/oportunidad/${match.id}`,
     enlace: null,
-    propia: false
+    propia: false,
+    origen: enSeguimiento(match) ? 'seguimiento' : 'sugerida'
   }));
 
   const deLibreta = propias.filter(propiaActiva).map((propia) => ({
@@ -115,11 +134,27 @@ export function filasConFecha({ matches = [], propias = [] }) {
     confianza: null,
     rutaDetalle: null,
     enlace: propia.enlace,
-    propia: true
+    propia: true,
+    origen: 'propia'
   }));
 
   return [...deMatches, ...deLibreta]
     .map((fila) => ({ ...fila, dias: diasRestantes(fila.fechaLimite) }))
     .filter((fila) => fila.dias !== null && fila.dias >= 0)
-    .sort((a, b) => a.dias - b.dias);
+    .sort((a, b) => {
+      if (a.dias !== b.dias) return a.dias - b.dias;
+      // A igual urgencia, primero lo que la persona ya eligio: una sugerencia
+      // no puede empujar hacia abajo algo que ya decidio seguir.
+      const peso = (fila) => (fila.origen === 'sugerida' ? 1 : 0);
+      return peso(a) - peso(b);
+    });
 }
+
+/**
+ * Lo que de verdad amerita un aviso en la navegacion.
+ *
+ * Solo compromisos: lo que la persona guardo y lo que anoto. Una recomendacion
+ * que todavia no miro no puede generar un numero rojo — eso seria apurarla por
+ * algo que ni siquiera eligio.
+ */
+export const esCompromiso = (fila) => fila.origen !== 'sugerida';
