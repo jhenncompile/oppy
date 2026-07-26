@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Panel, PanelTitulo } from '../components/Panel.jsx';
 import { Button } from '../components/Button.jsx';
@@ -22,17 +22,35 @@ export function Buscando() {
   const { estado, pasos, iniciar } = useAgentRun();
   const { recargar } = useMatchesCompartidos();
   const navegar = useNavigate();
-  const arrancado = useRef(false);
 
   useEffect(() => {
-    if (!perfil || arrancado.current) return;
-    arrancado.current = true;
-    iniciar(perfil.id);
+    if (!perfil) return undefined;
+
+    // StrictMode remonta y resetea refs; sin sessionStorage se dispararia
+    // dos corridas del agente por cada visita a /buscando.
+    const clave = `oppy.run.${perfil.id}`;
+    if (sessionStorage.getItem(clave)) return undefined;
+
+    sessionStorage.setItem(clave, '1');
+    let cancelado = false;
+
+    (async () => {
+      const runId = await iniciar(perfil.id);
+      if (cancelado || !runId) sessionStorage.removeItem(clave);
+    })();
+
+    return () => {
+      cancelado = true;
+    };
   }, [perfil, iniciar]);
 
   // Al terminar se recogen los resultados y se pasa al tablero. La pausa deja
   // leer la ultima linea en vez de cortar la narracion de golpe.
   useEffect(() => {
+    if (estado !== 'completada' && estado !== 'fallida') return undefined;
+
+    if (perfil) sessionStorage.removeItem(`oppy.run.${perfil.id}`);
+
     if (estado !== 'completada') return undefined;
 
     const temporizador = setTimeout(async () => {
@@ -41,7 +59,7 @@ export function Buscando() {
     }, PAUSA_ANTES_DE_RESULTADOS_MS);
 
     return () => clearTimeout(temporizador);
-  }, [estado, navegar, recargar]);
+  }, [estado, navegar, recargar, perfil]);
 
   if (!perfil) return <Navigate to="/" replace />;
 
@@ -59,7 +77,13 @@ export function Buscando() {
 
       {fallo && (
         <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <Button variante="primario" onClick={() => iniciar(perfil.id)}>
+          <Button
+            variante="primario"
+            onClick={() => {
+              sessionStorage.removeItem(`oppy.run.${perfil.id}`);
+              iniciar(perfil.id);
+            }}
+          >
             Intentar de nuevo
           </Button>
           <Button variante="secundario" onClick={() => navegar('/oportunidades')}>

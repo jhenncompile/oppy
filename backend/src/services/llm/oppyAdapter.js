@@ -38,6 +38,7 @@ export function perfilAOppy(perfil) {
     skills: perfil.habilidades ?? [],
     interests: [
       ...(perfil.objetivo ? [perfil.objetivo] : []),
+      ...(perfil.objetivos ?? []),
       ...(perfil.intereses ?? []),
       ...(perfil.experiencia ?? [])
     ],

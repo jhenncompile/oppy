@@ -93,7 +93,7 @@ async function correr({ perfil, corrida, disparador }) {
     // 2 y 3. Conseguir oportunidades: rastreando el mundo real, o del catalogo
     // de demo cuando no hay claves de scraping ni modelo servido.
     const oportunidades = env.demoMode
-      ? deCatalogoDemo(paso, plan.categorias)
+      ? await deCatalogoDemo(paso, plan.categorias)
       : await descubrirYNormalizar(plan, paso);
 
     // 4. Alimentar el indice compartido
@@ -224,7 +224,7 @@ function puntajeDocumento(documento) {
  * vivo se ve igual — pero deja dicho que son datos de ejemplo: una demo que se
  * confunde con la real es peor que no tener demo.
  */
-function deCatalogoDemo(paso, categorias) {
+async function deCatalogoDemo(paso, categorias) {
   paso({ tipo: 'descubrimiento_inicio', mensaje: 'Modo demo: catalogo de ejemplo, sin rastreo' });
   const todas = oportunidadesDemo();
   const oportunidades = categorias?.length
@@ -247,8 +247,9 @@ function deCatalogoDemo(paso, categorias) {
 }
 
 function resumenPerfil(perfil) {
+  const objetivo = perfil.objetivo ?? perfil.objetivos?.[0];
   const partes = [
-    perfil.objetivo ? `objetivo ${perfil.objetivo}` : null,
+    objetivo ? `objetivo ${objetivo}` : null,
     perfil.carrera,
     perfil.nivelEstudios,
     perfil.ubicacion

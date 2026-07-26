@@ -249,14 +249,7 @@ export function Onboarding() {
     }
   };
 
-  const completo =
-    objetivo[0] &&
-    valores.carrera.trim() &&
-    valores.nivelEstudios.trim() &&
-    valores.ubicacion.trim();
-
-  // El opt-in no sirve de nada sin un contacto donde avisar.
-  const puedeAvisar = Boolean(valores.email.trim() || valores.telefono.trim());
+  const puedeAvisar = Boolean(v.email.trim() || v.telefono.trim());
 
   return (
     <Panel>

@@ -17,6 +17,28 @@ const FECHA = new Intl.DateTimeFormat('es-BO', {
 
 const legible = (slug) => slug.replace(/_/g, ' ');
 
+/** Compara slugs del perfil (excel) con skills libres (Excel avanzado). */
+function normalizarSkill(texto) {
+  return String(texto ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function perfilTieneSkill(misHabilidades, skill) {
+  const pedido = normalizarSkill(skill);
+  if (!pedido) return false;
+  for (const mia of misHabilidades) {
+    const base = normalizarSkill(mia);
+    if (!base) continue;
+    if (pedido === base || pedido.includes(base) || base.includes(pedido)) return true;
+  }
+  return false;
+}
+
 /**
  * El checklist vive en localStorage y no en el servidor.
  *
@@ -126,7 +148,7 @@ export function Detalle() {
   }
 
   const { oportunidad } = match;
-  const misHabilidades = new Set(perfil.habilidades ?? []);
+  const misHabilidades = perfil.habilidades ?? [];
   const enSeg = enSeguimiento(match);
 
   const postular = () => {
@@ -254,7 +276,7 @@ export function Detalle() {
           <Bloque titulo="Lo que piden">
             <ul className="flex flex-wrap gap-1.5">
               {oportunidad.skills.map((skill) => {
-                const laTengo = misHabilidades.has(skill);
+                const laTengo = perfilTieneSkill(misHabilidades, skill);
                 return (
                   <li
                     key={skill}

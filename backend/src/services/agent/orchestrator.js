@@ -61,16 +61,18 @@ Responde solo con JSON.`;
 /**
  * Decide el plan de busqueda para un perfil.
  *
- * Si el frontend mando un objetivo, el plan se arma de forma deterministica
+ * Si el frontend mando objetivos, el plan se arma de forma deterministica
  * desde esos parametros: asi "empleo" nunca termina buscando becas, y no
  * dependemos de que Ollama responda a tiempo. El LLM solo se usa cuando no
  * hay objetivo claro.
  */
 export async function planificar(perfil) {
-  if (perfil?.objetivo && OBJETIVO_A_CATEGORIAS[perfil.objetivo]) {
+  const objetivo = objetivoPrincipal(perfil);
+  if (objetivo && OBJETIVO_A_CATEGORIAS[objetivo]) {
     const plan = planDesdePerfil(perfil);
     log.info('Plan desde parametros del frontend', {
-      objetivo: perfil.objetivo,
+      objetivo,
+      objetivos: perfil.objetivos ?? [],
       queries: plan.queries,
       categorias: plan.categorias
     });
@@ -80,12 +82,13 @@ export async function planificar(perfil) {
   const categoriasObjetivo = categoriasPara(perfil);
   const prompt = [
     'PERFIL',
-    `Objetivo (senal principal): ${etiquetaObjetivo(perfil.objetivo)}`,
+    `Objetivo (senal principal): ${etiquetaObjetivo(objetivo)}`,
+    `Otros objetivos: ${(perfil.objetivos ?? []).slice(1).join(', ') || 'ninguno'}`,
     `Carrera: ${perfil.carrera}`,
     `Nivel de estudios: ${perfil.nivelEstudios}`,
     `Ubicacion: ${perfil.ubicacion}`,
     `Experiencia: ${(perfil.experiencia ?? []).join(', ') || 'sin especificar'}`,
-    `Habilidades: ${(perfil.habilidades ?? []).join(', ') || 'sin especificar'}`,
+    `Habilidades: ${(perfil.habilidades ?? []).map((h) => String(h).replace(/_/g, ' ')).join(', ') || 'sin especificar'}`,
     `Intereses: ${(perfil.intereses ?? []).join(', ') || 'sin especificar'}`,
     `Restricciones: ${(perfil.restricciones ?? []).join(', ') || 'ninguna'}`,
     `Anio actual: ${new Date().getFullYear()}`,
@@ -109,7 +112,7 @@ export async function planificar(perfil) {
     log.info('Plan generado', {
       queries: alineado.queries.length,
       categorias: alineado.categorias,
-      objetivo: perfil.objetivo ?? null
+      objetivo: objetivo ?? null
     });
     return alineado;
   } catch (error) {
@@ -118,12 +121,29 @@ export async function planificar(perfil) {
   }
 }
 
-/** Categorias permitidas segun el objetivo; sin objetivo, el catalogo completo. */
+/** Primer objetivo del onboarding (el principal) o el campo legacy singular. */
+export function objetivoPrincipal(perfil) {
+  if (perfil?.objetivo && OBJETIVO_A_CATEGORIAS[perfil.objetivo]) return perfil.objetivo;
+  const lista = perfil?.objetivos ?? [];
+  return lista.find((o) => OBJETIVO_A_CATEGORIAS[o]) ?? lista[0] ?? null;
+}
+
+/** Categorias permitidas segun el/los objetivos; sin objetivo, el catalogo completo. */
 export function categoriasPara(perfil) {
-  if (perfil?.objetivo && OBJETIVO_A_CATEGORIAS[perfil.objetivo]) {
-    return OBJETIVO_A_CATEGORIAS[perfil.objetivo];
+  const lista = [
+    ...(perfil?.objetivo ? [perfil.objetivo] : []),
+    ...(perfil?.objetivos ?? [])
+  ].filter((o, i, arr) => OBJETIVO_A_CATEGORIAS[o] && arr.indexOf(o) === i);
+
+  if (lista.length === 0) return [...CATEGORIAS];
+
+  const categorias = [];
+  for (const objetivo of lista) {
+    for (const cat of OBJETIVO_A_CATEGORIAS[objetivo]) {
+      if (!categorias.includes(cat)) categorias.push(cat);
+    }
   }
-  return [...CATEGORIAS];
+  return categorias;
 }
 
 /**
@@ -134,10 +154,11 @@ export function planDesdePerfil(perfil) {
   const anio = new Date().getFullYear();
   const carrera = (perfil.carrera || 'jovenes').trim();
   const ubicacion = (perfil.ubicacion || 'Bolivia').trim();
-  const objetivo = perfil.objetivo;
-  const categorias = categoriasPara(perfil).slice(0, 3);
+  const objetivo = objetivoPrincipal(perfil);
+  const secundarios = (perfil.objetivos ?? []).filter((o) => o !== objetivo);
+  const categorias = categoriasPara(perfil).slice(0, 4);
   const extras = modificadoresDeBusqueda(perfil);
-  const skill = (perfil.habilidades ?? [])[0];
+  const skill = skillParaQuery((perfil.habilidades ?? [])[0]);
 
   const basePorObjetivo = {
     empleo: [
@@ -178,6 +199,11 @@ export function planDesdePerfil(perfil) {
     `pasantias empleo ${carrera} Bolivia ${anio}`
   ])];
 
+  // Una query extra para el segundo objetivo, sin desplazar al principal.
+  if (secundarios[0] && basePorObjetivo[secundarios[0]]) {
+    queries.push(basePorObjetivo[secundarios[0]][0]);
+  }
+
   // Incorpora restricciones y habilidades del formulario a las queries.
   if (extras.length > 0) {
     queries = queries.map((q, i) => (i === 0 ? `${q} ${extras.join(' ')}` : q));
@@ -195,6 +221,9 @@ export function planDesdePerfil(perfil) {
     objetivo ? `Busco ${etiquetaObjetivo(objetivo)}` : 'Busco oportunidades',
     `para ${carrera} en ${ubicacion}`
   ];
+  if (secundarios.length) {
+    partes.push(`tambien ${secundarios.map(etiquetaObjetivo).join(', ')}`);
+  }
   if (extras.length) partes.push(`(${extras.join(', ')})`);
 
   return {
@@ -214,13 +243,14 @@ export function planDeRespaldo(perfil) {
  * otra cosa (ej. "becas …" cuando pidieron empleo).
  */
 export function alinearConObjetivo(plan, perfil) {
+  const objetivo = objetivoPrincipal(perfil);
   const permitidas = new Set(categoriasPara(perfil));
   const categorias = (plan.categorias ?? []).filter((c) => permitidas.has(c));
   const categoriasFinales = categorias.length > 0
     ? categorias
     : [...permitidas].slice(0, 3);
 
-  let queries = (plan.queries ?? []).filter((q) => queryAlineada(q, perfil.objetivo));
+  let queries = (plan.queries ?? []).filter((q) => queryAlineada(q, objetivo));
   if (queries.length === 0) {
     queries = planDesdePerfil(perfil).queries;
   }
@@ -246,13 +276,33 @@ function modificadoresDeBusqueda(perfil) {
     medio_tiempo: 'medio tiempo',
     solo_manana: 'turno manana',
     solo_tarde: 'turno tarde',
+    horario_manana: 'turno manana',
+    horario_tarde: 'turno tarde',
+    horario_noche: 'turno noche',
+    solo_fines_de_semana: 'fines de semana',
+    necesidad_economica_inmediata: 'urgente',
     necesito_ingreso_ya: 'urgente',
-    requiere_accesibilidad: 'accesible'
+    cuidado_familiar: 'horario flexible',
+    sin_transporte: 'cerca o remoto',
+    sin_internet_en_casa: 'presencial',
+    sin_computadora: 'sin computadora',
+    requiere_accesibilidad: 'accesible',
+    discapacidad_visual: 'accesible',
+    discapacidad_auditiva: 'accesible',
+    discapacidad_motriz: 'accesible'
   };
 
-  return restricciones
-    .map((r) => mapa[r])
-    .filter(Boolean);
+  return [...new Set(
+    restricciones
+      .map((r) => mapa[r])
+      .filter(Boolean)
+  )];
+}
+
+/** Slugs del front (atencion_al_cliente) → texto de busqueda. */
+function skillParaQuery(skill) {
+  if (!skill) return null;
+  return String(skill).replace(/_/g, ' ').trim();
 }
 
 /** Una query de becas no sirve si el objetivo es empleo (y viceversa). */

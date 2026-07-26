@@ -28,8 +28,13 @@ export function useMatches(userId) {
   const [error, setError] = useState(null);
 
   const recargar = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setMatches([]);
+      setCargando(false);
+      return;
+    }
 
+    setCargando(true);
     try {
       const { matches: encontrados } = await api.obtenerMatches(userId, { limit: 50 });
       setMatches(encontrados);

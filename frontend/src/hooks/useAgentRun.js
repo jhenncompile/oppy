@@ -55,9 +55,12 @@ export function useAgentRun() {
 
       fuente.onerror = () => {
         // El servidor cierra el stream al terminar; eso llega aca como error.
-        // Solo es un fallo real si la corrida seguia en curso.
-        setEstado((actual) => (actual === 'en_curso' ? 'fallida' : actual));
-        cerrarFuente();
+        // Solo es fallo si seguimos en curso y la conexion murio de verdad.
+        setEstado((actual) => {
+          if (actual !== 'en_curso') return actual;
+          return fuente.readyState === EventSource.CLOSED ? 'fallida' : actual;
+        });
+        if (fuente.readyState === EventSource.CLOSED) cerrarFuente();
       };
 
       return runId;
