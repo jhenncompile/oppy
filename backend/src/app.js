@@ -9,7 +9,19 @@ export function crearApp() {
   const app = express();
 
   app.set('trust proxy', 1);
-  app.use(cors({ origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(',') }));
+
+  // En desarrollo se acepta cualquier origen: el frontend puede correr en Vite,
+  // en el preview de una herramienta de diseno o en otro puerto, y pelear con
+  // CORS mientras se construye la interfaz no protege de nada.
+  //
+  // En produccion manda CORS_ORIGIN, que acepta varios separados por coma.
+  app.use(
+    cors({
+      origin: env.isDevelopment || env.CORS_ORIGIN === '*'
+        ? true
+        : env.CORS_ORIGIN.split(',').map((origen) => origen.trim())
+    })
+  );
   app.use(express.json({ limit: '256kb' }));
   app.use(requestLogger);
 

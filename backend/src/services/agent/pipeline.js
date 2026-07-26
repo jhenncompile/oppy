@@ -16,6 +16,24 @@ const log = logger.child({ module: 'pipeline' });
 const CONCURRENCIA_NORMALIZACION = 4;
 const CONCURRENCIA_SCORING = 4;
 
+/** Pausa entre pasos narrados, solo en modo demo. Ver `ritmo`. */
+const RITMO_DEMO_MS = 700;
+
+/**
+ * La narracion en vivo es la prueba visible de que hay un agente decidiendo, y
+ * es lo que sostiene el criterio de demo del pitch.
+ *
+ * En el camino real la espera existe sola: descubrir y razonar tardan decenas
+ * de segundos. Pero el catalogo de demo corre en milisegundos, y ahi la
+ * narracion entera pasa antes de que nadie alcance a leer una linea — la
+ * pantalla mas importante del producto queda invisible.
+ *
+ * Esto NO simula trabajo que no ocurre: separa pasos que si ocurrieron para
+ * que se puedan leer. Fuera de modo demo no hace absolutamente nada.
+ */
+const ritmo = () =>
+  env.demoMode ? new Promise((listo) => setTimeout(listo, RITMO_DEMO_MS)) : Promise.resolve();
+
 /**
  * Registra la corrida y arranca el trabajo, devolviendo el runId de inmediato.
  *
@@ -56,29 +74,34 @@ async function correr({ perfil, corrida, disparador }) {
       tipo: 'perfil',
       mensaje: `Entendi tu perfil: ${perfil.carrera}, ${perfil.nivelEstudios}, ${perfil.ubicacion}`
     });
+    await ritmo();
 
     // 1. Decidir que buscar — esto es lo que lo hace un agente y no un buscador
     paso({ tipo: 'plan_inicio', mensaje: 'Decidiendo que buscar para vos' });
     const plan = await planificar(perfil);
+    await ritmo();
     paso({
       tipo: 'plan_fin',
       mensaje: plan.razonamiento,
       queries: plan.queries,
       categorias: plan.categorias
     });
+    await ritmo();
 
     // 2 y 3. Conseguir oportunidades: rastreando el mundo real, o del catalogo
     // de demo cuando no hay claves de scraping ni modelo servido.
     const oportunidades = env.demoMode
-      ? deCatalogoDemo(paso)
+      ? await deCatalogoDemo(paso)
       : await descubrirYNormalizar(plan, paso);
 
     // 4. Alimentar el indice compartido
     const nuevas = await guardarEnIndice(oportunidades);
     paso({ tipo: 'indice', mensaje: `${nuevas} nuevas para el indice`, nuevas });
+    await ritmo();
 
     // 5. Razonar sobre compatibilidad
     paso({ tipo: 'scoring_inicio', mensaje: 'Evaluando cuales son para vos' });
+    await ritmo();
     const matches = await puntuarParaPerfil(
       perfil,
       plan.categorias,
@@ -148,19 +171,37 @@ async function descubrirYNormalizar(plan, paso) {
  * vivo se ve igual — pero deja dicho que son datos de ejemplo: una demo que se
  * confunde con la real es peor que no tener demo.
  */
-function deCatalogoDemo(paso) {
+async function deCatalogoDemo(paso) {
   paso({ tipo: 'descubrimiento_inicio', mensaje: 'Modo demo: catalogo de ejemplo, sin rastreo' });
   const oportunidades = oportunidadesDemo();
+
+  // Se narra fuente por fuente, igual que en el camino real: la pantalla de
+  // proceso tiene que verse igual con datos de ejemplo que con datos reales,
+  // porque es la que se demuestra.
+  const fuentes = [...new Set(oportunidades.map((o) => o.fuente.nombre))];
+  for (const fuente of fuentes) {
+    await ritmo();
+    paso({
+      tipo: 'fuente_fin',
+      fuente,
+      exito: true,
+      encontrados: oportunidades.filter((o) => o.fuente.nombre === fuente).length
+    });
+  }
+
+  await ritmo();
   paso({
     tipo: 'descubrimiento_fin',
     mensaje: `${oportunidades.length} convocatorias de ejemplo`,
     total: oportunidades.length
   });
+  await ritmo();
   paso({
     tipo: 'normalizacion_fin',
     mensaje: `${oportunidades.length} oportunidades listas`,
     total: oportunidades.length
   });
+  await ritmo();
 
   return oportunidades;
 }

@@ -36,9 +36,13 @@ CREATE TABLE IF NOT EXISTS users (
   ubicacion              TEXT NOT NULL,
   idiomas                JSONB NOT NULL DEFAULT '[]'::jsonb,
 
-  -- El objetivo es la senal mas fuerte que recibe el agente: acota que buscar
-  -- antes de mirar cualquier otra cosa del perfil.
-  objetivo               TEXT,
+  -- Los objetivos son la senal mas fuerte que recibe el agente: acotan que
+  -- buscar antes de mirar cualquier otra cosa del perfil.
+  --
+  -- Es un arreglo porque los perfiles reales lo son: Diego busca pasantias Y
+  -- becas Y hackathons. Pero acotado a 3 en la API — cada objetivo abre mas
+  -- busquedas, y el descubrimiento es lo que cuesta. El primero pesa mas.
+  objetivos              TEXT[] NOT NULL DEFAULT '{}',
   -- 'experiencia_familiar' entra a proposito: para mucha gente veinte anios
   -- administrando una casa SON experiencia administrativa, y ningun formulario
   -- tradicional se lo reconoce.
@@ -66,7 +70,22 @@ CREATE TABLE IF NOT EXISTS users (
 -- Ver la nota de `matches` mas abajo: los CREATE son no-ops sobre una base que
 -- ya existe, asi que todo cambio posterior vive en un ALTER idempotente.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS edad INTEGER;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS objetivo TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS objetivos TEXT[] NOT NULL DEFAULT '{}';
+
+-- objetivo (uno) -> objetivos (varios). Los perfiles reales persiguen mas de
+-- una cosa a la vez; el valor que ya existia pasa a ser el primero, que es el
+-- que mas pesa.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'users' AND column_name = 'objetivo'
+  ) THEN
+    UPDATE users SET objetivos = ARRAY[objetivo]
+      WHERE objetivo IS NOT NULL AND cardinality(objetivos) = 0;
+    ALTER TABLE users DROP COLUMN objetivo;
+  END IF;
+END $$;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS experiencia TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS habilidades TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS preferencias JSONB NOT NULL DEFAULT '{}'::jsonb;

@@ -20,6 +20,10 @@ export const api = {
   crearPerfil: (perfil) =>
     pedir('/profiles', { method: 'POST', body: JSON.stringify(perfil) }),
 
+  obtenerPerfil: (userId) => pedir(`/profiles/${userId}`),
+
+  obtenerOportunidad: (id) => pedir(`/opportunities/${id}`),
+
   dispararAgente: (userId) =>
     pedir('/agent/run', { method: 'POST', body: JSON.stringify({ userId }) }),
 
@@ -28,6 +32,12 @@ export const api = {
 
   actualizarMatch: (matchId, estado) =>
     pedir(`/matches/${matchId}`, { method: 'PATCH', body: JSON.stringify({ estado }) }),
+
+  actualizarVisibilidad: (userId, visibleParaEmpresas) =>
+    pedir(`/profiles/${userId}/visibilidad`, {
+      method: 'PATCH',
+      body: JSON.stringify({ visibleParaEmpresas })
+    }),
 
   /** Telemetria: nunca debe romper la interfaz si falla. */
   registrarEvento: (evento) =>

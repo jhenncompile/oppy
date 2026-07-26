@@ -65,16 +65,21 @@ usuario lo puede editar cuando quiera.
 
 Nombre · edad *(opcional)* · ubicación · idioma preferido
 
-## Objetivo principal
+## Objetivos
 
-Una sola elección, editable después desde el perfil:
+**Hasta tres**, editables después desde el perfil. El primero es el principal:
 
 💼 Encontrar empleo · 🔄 Reinsertarme laboralmente · 🎓 Becas ·
 📚 Cursos y certificaciones · 🚀 Crecimiento profesional · 🤝 Voluntariados ·
 🏆 Eventos y hackathons
 
-El objetivo es la señal más fuerte que recibe el agente: **acota qué buscar
+Los objetivos son la señal más fuerte que recibe el agente: **acotan qué buscar
 antes de mirar cualquier otra cosa del perfil.**
+
+Son varios porque los arquetipos ya lo son — Diego busca pasantías *y* becas *y*
+hackathons; Ana busca becas *y* eventos *y* comunidades. Obligar a elegir uno era
+artificial. El tope de tres existe porque cada objetivo abre más búsquedas, y el
+descubrimiento es lo que cuesta por corrida.
 
 ## Experiencia
 

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { TrustBadge } from './TrustBadge.jsx';
 import { ScoreBar } from './ScoreBar.jsx';
 import { Button } from './Button.jsx';
@@ -32,7 +33,7 @@ function Deadline({ fechaLimite }) {
   );
 }
 
-export function OpportunityCard({ match, onGuardar, onAbrir, onSeguimiento }) {
+export function OpportunityCard({ match, onGuardar, onSeguimiento }) {
   const { oportunidad } = match;
   const guardada = match.estado !== 'nuevo' && match.estado !== 'visto';
 
@@ -110,9 +111,11 @@ export function OpportunityCard({ match, onGuardar, onAbrir, onSeguimiento }) {
         >
           {guardada ? 'Quitar' : 'Guardar'}
         </Button>
-        <Button variante="acento" onClick={() => onAbrir(match)}>
-          Ver detalle
-        </Button>
+        {/* Lleva al detalle, no al enlace externo: sacar a alguien del producto
+            antes de que vea por que le sirve es perderlo. */}
+        <Link to={`/oportunidad/${match.id}`}>
+          <Button variante="acento">Ver detalle</Button>
+        </Link>
       </footer>
     </article>
   );

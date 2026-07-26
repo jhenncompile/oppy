@@ -21,6 +21,13 @@ y los intereses del perfil.
 
 Elegi las categorias que tengan sentido para este perfil, no todas.
 
+Si el perfil declara mas de un objetivo, cubri el principal primero y deja al
+menos una busqueda para los demas. No dividas todo en partes iguales: el primero
+es el que la persona puso adelante.
+
+Respeta las restricciones: si dice que solo puede a la maniana o que necesita
+que sea remoto, no generes busquedas que las ignoren.
+
 Responde solo con JSON.`;
 
 /**
@@ -31,12 +38,21 @@ Responde solo con JSON.`;
  * campo `razonamiento` se muestra en la pantalla de proceso en vivo.
  */
 export async function planificar(perfil) {
+  const objetivos = perfil.objetivos ?? [];
+
   const prompt = [
     'PERFIL',
+    // Va primero y con enfasis: es la senal que acota que buscar antes que
+    // cualquier otra cosa. El orden importa — el primero es el que mas pesa.
+    objetivos.length > 0
+      ? `Objetivo principal: ${objetivos[0]}` +
+        (objetivos.length > 1 ? ` (tambien busca: ${objetivos.slice(1).join(', ')})` : '')
+      : 'Objetivo: sin especificar',
     `Carrera: ${perfil.carrera}`,
     `Nivel de estudios: ${perfil.nivelEstudios}`,
     `Ubicacion: ${perfil.ubicacion}`,
     `Intereses: ${(perfil.intereses ?? []).join(', ') || 'sin especificar'}`,
+    `Restricciones: ${(perfil.restricciones ?? []).join(', ') || 'ninguna'}`,
     `Anio actual: ${new Date().getFullYear()}`,
     '',
     `Categorias validas: ${CATEGORIAS.join(', ')}`,
@@ -63,14 +79,33 @@ export async function planificar(perfil) {
   }
 }
 
+/** Categorias del indice que corresponden a cada objetivo declarado. */
+const CATEGORIAS_POR_OBJETIVO = {
+  empleo: ['empleo', 'pasantia'],
+  reinsercion: ['empleo', 'curso', 'programa_social'],
+  beca: ['beca', 'intercambio'],
+  curso: ['curso', 'beca'],
+  crecimiento: ['concurso', 'financiamiento', 'evento'],
+  voluntariado: ['voluntariado', 'programa_social'],
+  evento: ['evento', 'concurso']
+};
+
 function planDeRespaldo(perfil) {
   const anio = new Date().getFullYear();
+  const objetivos = perfil.objetivos ?? [];
+
+  // Incluso el respaldo respeta lo que la persona dijo que busca: un plan que
+  // ignora el objetivo devuelve resultados que no le sirven a nadie.
+  const categorias = [
+    ...new Set(objetivos.flatMap((objetivo) => CATEGORIAS_POR_OBJETIVO[objetivo] ?? []))
+  ];
+
   return {
     queries: [
-      `becas ${perfil.carrera} Bolivia ${anio} convocatoria`,
-      `pasantias ${perfil.carrera} ${perfil.ubicacion} ${anio}`
+      `${objetivos[0] ?? 'becas'} ${perfil.carrera} Bolivia ${anio} convocatoria`,
+      `${objetivos[1] ?? 'pasantias'} ${perfil.carrera} ${perfil.ubicacion} ${anio}`
     ],
-    categorias: ['beca', 'pasantia', 'empleo'],
+    categorias: categorias.length > 0 ? categorias : ['beca', 'pasantia', 'empleo'],
     razonamiento: 'Plan de respaldo derivado directamente del perfil.'
   };
 }

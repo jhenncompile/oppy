@@ -45,4 +45,17 @@
   .pill {
     @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium;
   }
+
+  /* Cada paso del agente entra por su cuenta. La animacion no es adorno: hace
+   * visible que las lineas van APARECIENDO, que es la diferencia entre ver a un
+   * agente trabajar y ver una lista que ya estaba escrita.
+   * El bloque de prefers-reduced-motion de arriba la desactiva sola. */
+  .paso-entra {
+    animation: paso-entra 200ms ease-out both;
+  }
+}
+
+@keyframes paso-entra {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
 }

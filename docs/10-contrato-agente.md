@@ -32,7 +32,7 @@ El backend arma un sobre con tres cosas y lo entrega. Siempre las tres.
   "edad": 48,
   "ubicacion": "Santa Cruz, Bolivia",
   "idioma": "es",
-  "objetivo": "reinsercion_laboral",
+  "objetivos": ["reinsercion", "curso"],
 
   "experiencia": ["administracion", "atencion_al_cliente", "experiencia_familiar"],
   "habilidades": ["comunicacion", "ventas", "organizacion"],
@@ -43,7 +43,9 @@ El backend arma un sobre con tres cosas y lo entrega. Siempre las tres.
 }
 ```
 
-`objetivo` es la señal más fuerte: acota qué buscar **antes** de mirar el resto.
+`objetivos` es la señal más fuerte: acota qué buscar **antes** de mirar el resto.
+Es un arreglo de 1 a 3 y **el orden importa** — el primero es el principal y el
+plan debe cubrirlo antes que los demás, sin repartir todo en partes iguales.
 
 `restricciones` no es decorativo. Una convocatoria que cumple todos los
 requisitos pero queda fuera del radio o del horario **no es elegible**, y el

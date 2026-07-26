@@ -29,7 +29,10 @@ const perfilSchema = z.object({
   ubicacion: z.string().min(2).max(80),
   idiomas: z.array(idiomaSchema).max(6).default([]),
 
-  objetivo: z.enum(OBJETIVOS).optional(),
+  // Hasta 3: los perfiles reales persiguen varias cosas a la vez, pero cada
+  // objetivo abre mas busquedas y el descubrimiento es lo que cuesta. El
+  // primero es el que mas pesa para el orquestador.
+  objetivos: z.array(z.enum(OBJETIVOS)).max(3).default([]),
   experiencia: z.array(z.string().min(2).max(60)).max(10).default([]),
   habilidades: z.array(z.string().min(2).max(60)).max(15).default([]),
   preferencias: z.record(z.union([z.string(), z.number(), z.boolean()])).default({}),

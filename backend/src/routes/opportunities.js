@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
-import { validarQuery } from '../middleware/validate.js';
+import { validarQuery, validarParamUuid } from '../middleware/validate.js';
 import { CATEGORIAS } from '../services/agent/normalizer.js';
 import * as opportunityRepository from '../repositories/opportunityRepository.js';
 
@@ -29,6 +29,7 @@ opportunitiesRouter.get(
 
 opportunitiesRouter.get(
   '/:id',
+  validarParamUuid(),
   asyncHandler(async (req, res) => {
     const oportunidad = await opportunityRepository.findById(req.params.id);
     if (!oportunidad) throw AppError.notFound('Oportunidad no encontrada');

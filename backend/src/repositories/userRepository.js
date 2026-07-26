@@ -11,7 +11,7 @@ function toDomain(row) {
     intereses: row.intereses,
     ubicacion: row.ubicacion,
     idiomas: row.idiomas,
-    objetivo: row.objetivo,
+    objetivos: row.objetivos,
     experiencia: row.experiencia,
     habilidades: row.habilidades,
     preferencias: row.preferencias,
@@ -29,7 +29,7 @@ export async function create(profile) {
   const row = await queryOne(
     `INSERT INTO users (
        nombre, edad, carrera, nivel_estudios, intereses, ubicacion, idiomas,
-       objetivo, experiencia, habilidades, preferencias, restricciones,
+       objetivos, experiencia, habilidades, preferencias, restricciones,
        email, telefono, acepta_notificaciones
      )
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
@@ -42,7 +42,7 @@ export async function create(profile) {
       profile.intereses,
       profile.ubicacion,
       JSON.stringify(profile.idiomas ?? []),
-      profile.objetivo ?? null,
+      profile.objetivos ?? [],
       profile.experiencia ?? [],
       profile.habilidades ?? [],
       JSON.stringify(profile.preferencias ?? {}),

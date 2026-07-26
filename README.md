@@ -215,7 +215,8 @@ cd backend && node scripts/test-zavu.js tu@correo.com
 | `GET` | `/api/insights/skills` | Habilidades mas pedidas — inteligencia de oportunidades |
 | `GET` | `/health` | Estado y capacidades activas |
 
-El perfil acepta ademas `objetivo`, `experiencia[]`, `habilidades[]`,
+El perfil acepta ademas `objetivos[]` (1 a 3, el primero pesa mas),
+`experiencia[]`, `habilidades[]`,
 `restricciones[]` y contacto (`email` / `telefono`) con `aceptaNotificaciones`.
 Todo opcional salvo carrera, nivel de estudios y ubicacion.
 

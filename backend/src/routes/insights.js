@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { validarQuery } from '../middleware/validate.js';
+import { validarQuery, validarParamUuid } from '../middleware/validate.js';
 import * as opportunityRepository from '../repositories/opportunityRepository.js';
 import * as eventRepository from '../repositories/eventRepository.js';
 
@@ -40,6 +40,7 @@ insightsRouter.get(
 /** Reporte de alcance para una organizacion que publica o patrocina. */
 insightsRouter.get(
   '/orgs/:orgId/alcance',
+  validarParamUuid('orgId'),
   validarQuery(ventanaSchema),
   asyncHandler(async (req, res) => {
     const alcance = await eventRepository.alcancePorOrg(req.params.orgId, {
