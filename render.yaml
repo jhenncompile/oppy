@@ -1,0 +1,71 @@
+# Infraestructura de Oppy en Render.
+#
+# Dos servicios y una base: la API (que ademas expone el stream de progreso) y
+# un cron job que corre el MISMO pipeline en un proceso aparte.
+#
+# El cron embebido en la API (CRON_ENABLED=true) y este cron job son
+# alternativas, no complementos: activar los dos duplicaria el descubrimiento.
+
+databases:
+  - name: oppy-db
+    databaseName: oppy
+    plan: free
+
+services:
+  - type: web
+    name: oppy-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: oppy-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: 'true'
+      # El cron vive en su propio servicio, no dentro de la API.
+      - key: CRON_ENABLED
+        value: 'false'
+      - key: CORS_ORIGIN
+        sync: false
+      - key: OLLAMA_URL
+        sync: false
+      - key: OLLAMA_MODEL
+        sync: false
+      - key: EXA_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
+        sync: false
+
+  - type: cron
+    name: oppy-descubrimiento
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    # 06:00 UTC ~ 02:00 en Bolivia: fuera del horario de uso.
+    schedule: '0 6 * * *'
+    startCommand: npm run cron
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: oppy-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: 'true'
+      - key: OLLAMA_URL
+        sync: false
+      - key: OLLAMA_MODEL
+        sync: false
+      - key: EXA_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
+        sync: false

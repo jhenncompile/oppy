@@ -1,0 +1,16 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# El frontend es una SPA: todo lo que no sea un archivo cae en index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# En produccion VITE_API_URL apunta al servicio de Render. Se define en el
+# panel de Netlify, no aca, para no versionar la URL.

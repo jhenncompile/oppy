@@ -1,0 +1,179 @@
+/* ---------------------------------------------------------------------------
+ * Tokens de Oppy.
+ *
+ * Estas variables son las MISMAS que las variables del archivo de Figma. Los
+ * nombres coinciden uno a uno, asi que pasar de diseno a codigo no requiere
+ * traducir nada.
+ *
+ *   1. Primitivos  — escalas Radix (blue, gray, green, amber, red)
+ *   2. Semanticos  — lo unico que se usa al construir interfaz
+ *   3. Escala      — espaciado, radios, tipografia
+ *
+ * Regla: los componentes NUNCA usan un primitivo directamente.
+ * ------------------------------------------------------------------------- */
+
+/* == 1. Primitivos — claro ================================================= */
+:root,
+.light,
+.light-theme {
+  --blue-1: #fafdfe;
+  --blue-2: #f3fafd;
+  --blue-3: #e2f5fe;
+  --blue-4: #d1eefc;
+  --blue-5: #bfe5f7;
+  --blue-6: #abd9ef;
+  --blue-7: #8fc9e4;
+  --blue-8: #61b2d6;
+  --blue-9: #49a0c5;
+  --blue-10: #3c94b8;
+  --blue-11: #17789c;
+  --blue-12: #1a3b4a;
+  --blue-contrast: #fff;
+
+  --gray-1: #fcfcfd;
+  --gray-2: #f9f9fb;
+  --gray-3: #eff0f3;
+  --gray-4: #e7e8ec;
+  --gray-5: #e0e1e6;
+  --gray-6: #d8d9e0;
+  --gray-7: #cdced7;
+  --gray-8: #b9bbc6;
+  --gray-9: #8b8d98;
+  --gray-10: #80828d;
+  --gray-11: #62636c;
+  --gray-12: #1e1f24;
+
+  --green-3: #e6f6eb;
+  --green-6: #adddc0;
+  --green-9: #30a46c;
+  --green-11: #218358;
+
+  --amber-3: #fff7c2;
+  --amber-6: #f3d673;
+  --amber-9: #ffc53d;
+  --amber-11: #ab6400;
+
+  --red-3: #feebec;
+  --red-6: #fdbdbe;
+  --red-9: #e5484d;
+  --red-11: #ce2c31;
+
+  --color-background: #fffafa;
+}
+
+/* == 1b. Primitivos — oscuro =============================================== */
+.dark,
+.dark-theme {
+  --blue-1: #0c111c;
+  --blue-2: #111725;
+  --blue-3: #172448;
+  --blue-4: #1d2e61;
+  --blue-5: #243974;
+  --blue-6: #2d4484;
+  --blue-7: #375098;
+  --blue-8: #405eb2;
+  --blue-9: #3d63dd;
+  --blue-10: #3f5cb0;
+  --blue-11: #93b4ff;
+  --blue-12: #d5e2ff;
+  --blue-contrast: #fff;
+
+  --gray-1: #111113;
+  --gray-2: #19191b;
+  --gray-3: #222325;
+  --gray-4: #292a2e;
+  --gray-5: #303136;
+  --gray-6: #393a40;
+  --gray-7: #46484f;
+  --gray-8: #5f606a;
+  --gray-9: #6c6e79;
+  --gray-10: #797b86;
+  --gray-11: #b2b3bd;
+  --gray-12: #eeeef0;
+
+  --green-3: #132d21;
+  --green-6: #20573e;
+  --green-9: #30a46c;
+  --green-11: #3dd68c;
+
+  --amber-3: #302008;
+  --amber-6: #5c3d05;
+  --amber-9: #ffc53d;
+  --amber-11: #ffca16;
+
+  --red-3: #3b1219;
+  --red-6: #72232d;
+  --red-9: #e5484d;
+  --red-11: #ff9592;
+
+  --color-background: #111;
+}
+
+/* == 2. Semanticos ========================================================= */
+/* Se resuelven solos al cambiar de tema porque apuntan al mismo paso de la
+ * escala: asi estan disenadas las escalas de Radix. */
+:root {
+  --surface-page: var(--color-background);
+  --surface-card: var(--gray-1);
+  --surface-subtle: var(--gray-2);
+  --surface-hover: var(--gray-3);
+  --surface-accent-subtle: var(--blue-3);
+
+  --border-subtle: var(--gray-6);
+  --border-default: var(--gray-7);
+  --border-accent: var(--blue-8);
+
+  --text-primary: var(--gray-12);
+  --text-secondary: var(--gray-11);
+  --text-muted: var(--gray-10);
+  --text-accent: var(--blue-11);
+  --text-on-accent: var(--blue-contrast);
+
+  --accent-solid: var(--blue-9);
+  --accent-hover: var(--blue-10);
+
+  /* Semaforo de confianza. Nunca se comunica solo con color: cada estado
+   * lleva ademas punto e etiqueta de texto. */
+  --trust-verified-bg: var(--green-3);
+  --trust-verified-border: var(--green-6);
+  --trust-verified-solid: var(--green-9);
+  --trust-verified-text: var(--green-11);
+
+  --trust-pending-bg: var(--amber-3);
+  --trust-pending-border: var(--amber-6);
+  --trust-pending-solid: var(--amber-9);
+  --trust-pending-text: var(--amber-11);
+
+  --trust-stale-bg: var(--red-3);
+  --trust-stale-border: var(--red-6);
+  --trust-stale-solid: var(--red-9);
+  --trust-stale-text: var(--red-11);
+
+  --score-track: var(--gray-4);
+  --score-fill: var(--blue-9);
+  --score-text: var(--blue-11);
+}
+
+/* == 3. Escala ============================================================= */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  /* Los paneles apilados que dan caracter a la pagina */
+  --radius-panel: 32px;
+
+  /* Cambiar aca la familia display si se incorpora una fuente de marca. */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}

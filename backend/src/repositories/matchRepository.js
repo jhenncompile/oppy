@@ -1,0 +1,90 @@
+import { query, queryOne } from '../db/index.js';
+
+function toDomain(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    userId: row.user_id,
+    matchScore: row.match_score,
+    porQueCalza: row.por_que_calza,
+    elegible: row.elegible,
+    estado: row.estado,
+    createdAt: row.created_at,
+    oportunidad: row.titulo
+      ? {
+          id: row.opportunity_id,
+          titulo: row.titulo,
+          categoria: row.categoria,
+          elegibilidad: row.elegibilidad,
+          montoBeneficio: row.monto_beneficio,
+          skills: row.skills,
+          fuente: { nombre: row.fuente_nombre, url: row.fuente_url },
+          linkAplicacion: row.link_aplicacion,
+          fechaLimite: row.fecha_limite,
+          confianza: row.confianza,
+          sponsored: row.sponsored,
+          fechaExtraida: row.fecha_extraida
+        }
+      : { id: row.opportunity_id }
+  };
+}
+
+const SELECT_CON_OPORTUNIDAD = `
+  SELECT m.*, o.titulo, o.categoria, o.elegibilidad, o.monto_beneficio, o.skills,
+         o.fuente_nombre, o.fuente_url, o.link_aplicacion, o.fecha_limite,
+         o.confianza, o.sponsored, o.fecha_extraida
+  FROM matches m
+  JOIN opportunities o ON o.id = m.opportunity_id
+`;
+
+export async function upsert(match) {
+  const row = await queryOne(
+    `INSERT INTO matches (user_id, opportunity_id, match_score, por_que_calza, elegible)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (user_id, opportunity_id) DO UPDATE SET
+       match_score   = EXCLUDED.match_score,
+       por_que_calza = EXCLUDED.por_que_calza,
+       elegible      = EXCLUDED.elegible,
+       updated_at    = now()
+     RETURNING *`,
+    [match.userId, match.opportunityId, match.matchScore, match.porQueCalza, match.elegible]
+  );
+  return toDomain(row);
+}
+
+/**
+ * Los descartados no vuelven a aparecer: si la persona ya dijo que no, se
+ * respeta. Es la base del feedback loop.
+ */
+export async function findByUser(userId, { minScore = 0, limit = 20 } = {}) {
+  const { rows } = await query(
+    `${SELECT_CON_OPORTUNIDAD}
+     WHERE m.user_id = $1
+       AND m.estado <> 'descartado'
+       AND m.match_score >= $2
+       AND o.estado = 'vigente'
+     ORDER BY m.match_score DESC, o.fecha_limite ASC NULLS LAST
+     LIMIT $3`,
+    [userId, minScore, limit]
+  );
+  return rows.map(toDomain);
+}
+
+export async function actualizarEstado(matchId, estado) {
+  const row = await queryOne(
+    `UPDATE matches SET estado = $2, updated_at = now()
+     WHERE id = $1
+     RETURNING *`,
+    [matchId, estado]
+  );
+  return toDomain(row);
+}
+
+/** IDs ya evaluados: evita gastar tokens puntuando dos veces lo mismo. */
+export async function idsYaEvaluados(userId) {
+  const { rows } = await query(
+    'SELECT opportunity_id FROM matches WHERE user_id = $1',
+    [userId]
+  );
+  return new Set(rows.map((row) => row.opportunity_id));
+}

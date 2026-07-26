@@ -1,0 +1,185 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import { clasificar, esDominioOficial, hostnameDe, CONFIANZA } from '../src/services/scoring/trust.js';
+import { mapConLimite, mapExitosos } from '../src/utils/concurrency.js';
+import { fuentesActivas, fuentesPorEstrategia, ESTRATEGIAS } from '../src/services/scraping/sources.js';
+import { combinacionesDeBusqueda } from '../src/services/scraping/discovery.js';
+import { extraerJson } from '../src/services/llm/index.js';
+import { calcularHash } from '../src/services/agent/normalizer.js';
+import { AppError } from '../src/utils/AppError.js';
+
+const MANANA = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+const AYER = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+
+// ---------------------------------------------------------------------------
+test('confianza: dominio oficial y plazo vigente da verificada', () => {
+  assert.equal(
+    clasificar({ url: 'https://www.bo.emb-japan.go.jp/becas', fechaLimite: MANANA }),
+    CONFIANZA.VERIFICADA
+  );
+});
+
+test('confianza: dominio no oficial queda por validar', () => {
+  assert.equal(
+    clasificar({ url: 'https://blogdebecas.com/post', fechaLimite: MANANA }),
+    CONFIANZA.POR_VALIDAR
+  );
+});
+
+test('confianza: un plazo vencido pesa mas que un dominio oficial', () => {
+  assert.equal(
+    clasificar({ url: 'https://bo.usembassy.gov/x', fechaLimite: AYER }),
+    CONFIANZA.DESACTUALIZADA
+  );
+});
+
+test('confianza: sin fecha limite no se asume vencida', () => {
+  assert.equal(
+    clasificar({ url: 'https://bo.usembassy.gov/x', fechaLimite: null }),
+    CONFIANZA.VERIFICADA
+  );
+});
+
+test('confianza: una fecha ilegible no rompe la clasificacion', () => {
+  assert.equal(
+    clasificar({ url: 'https://ejemplo.com', fechaLimite: 'proximamente' }),
+    CONFIANZA.POR_VALIDAR
+  );
+});
+
+test('dominio oficial: acepta subdominios pero no sufijos falsos', () => {
+  assert.equal(esDominioOficial('https://becas.upb.edu/x'), true);
+  assert.equal(esDominioOficial('https://www.upb.edu/x'), true);
+  // Un atacante no puede registrar "notupb.edu" y colarse como oficial
+  assert.equal(esDominioOficial('https://notupb.edu/x'), false);
+  assert.equal(esDominioOficial('https://upb.edu.falso.com/x'), false);
+});
+
+test('hostname: una URL invalida devuelve null en vez de lanzar', () => {
+  assert.equal(hostnameDe('no-es-una-url'), null);
+});
+
+// ---------------------------------------------------------------------------
+test('concurrencia: preserva el orden de entrada', async () => {
+  const items = [50, 10, 30, 5];
+  const resultados = await mapConLimite(items, 2, async (ms) => {
+    await new Promise((r) => setTimeout(r, ms));
+    return ms;
+  });
+  assert.deepEqual(resultados.map((r) => r.valor), items);
+});
+
+test('concurrencia: nunca supera el limite de tareas simultaneas', async () => {
+  let activas = 0;
+  let pico = 0;
+
+  await mapConLimite(Array.from({ length: 20 }), 3, async () => {
+    activas += 1;
+    pico = Math.max(pico, activas);
+    await new Promise((r) => setTimeout(r, 5));
+    activas -= 1;
+  });
+
+  assert.ok(pico <= 3, `el pico fue ${pico}, deberia ser <= 3`);
+});
+
+test('concurrencia: un fallo no tumba al resto', async () => {
+  const resultados = await mapConLimite([1, 2, 3], 2, async (n) => {
+    if (n === 2) throw new Error('falla a proposito');
+    return n;
+  });
+
+  assert.equal(resultados[0].ok, true);
+  assert.equal(resultados[1].ok, false);
+  assert.equal(resultados[2].ok, true);
+
+  const exitosos = await mapExitosos([1, 2, 3], 2, async (n) => {
+    if (n === 2) throw new Error('falla');
+    return n;
+  });
+  assert.deepEqual(exitosos, [1, 3]);
+});
+
+test('concurrencia: lista vacia no cuelga', async () => {
+  assert.deepEqual(await mapConLimite([], 4, async () => 1), []);
+});
+
+// ---------------------------------------------------------------------------
+test('fuentes: filtrar por categoria excluye las que no aplican', () => {
+  const soloEmpleo = fuentesActivas({ categorias: ['empleo'] });
+  assert.ok(soloEmpleo.length > 0);
+  assert.ok(soloEmpleo.every((f) => f.categorias.includes('empleo')));
+});
+
+test('fuentes: hay fuentes de ambas estrategias configuradas', () => {
+  assert.ok(fuentesPorEstrategia(ESTRATEGIAS.SCRAPE).length > 0);
+  assert.ok(fuentesPorEstrategia(ESTRATEGIAS.BUSQUEDA).length > 0);
+});
+
+// ---------------------------------------------------------------------------
+test('busquedas: no se paga dos veces la misma query con el mismo alcance', () => {
+  const fuentes = [
+    { id: 'a', dominiosPreferidos: null },
+    { id: 'b', dominiosPreferidos: null }
+  ];
+  const combinaciones = combinacionesDeBusqueda(fuentes, ['becas STEM', 'pasantias']);
+  assert.equal(combinaciones.size, 2);
+});
+
+test('busquedas: distinto alcance de dominios son busquedas distintas', () => {
+  const fuentes = [
+    { id: 'a', dominiosPreferidos: null },
+    { id: 'b', dominiosPreferidos: ['edu.bo'] }
+  ];
+  const combinaciones = combinacionesDeBusqueda(fuentes, ['becas STEM']);
+  assert.equal(combinaciones.size, 2);
+});
+
+test('busquedas: el orden de los dominios no crea duplicados', () => {
+  const fuentes = [
+    { id: 'a', dominiosPreferidos: ['edu.bo', 'gob.bo'] },
+    { id: 'b', dominiosPreferidos: ['gob.bo', 'edu.bo'] }
+  ];
+  const combinaciones = combinacionesDeBusqueda(fuentes, ['becas']);
+  assert.equal(combinaciones.size, 1);
+});
+
+// ---------------------------------------------------------------------------
+test('json: extrae aunque el modelo lo envuelva en prosa', () => {
+  assert.deepEqual(extraerJson('{"a":1}'), { a: 1 });
+  assert.deepEqual(extraerJson('Claro, aca tenes:\n{"a":1}\nEspero que sirva'), { a: 1 });
+  assert.deepEqual(extraerJson('```json\n{"a":1}\n```'), { a: 1 });
+});
+
+test('json: sin objeto, lanza con mensaje util', () => {
+  assert.throws(() => extraerJson('no hay json aca'), /no contiene un objeto JSON/);
+});
+
+// ---------------------------------------------------------------------------
+test('dedupe: mismo titulo y dominio produce el mismo hash', () => {
+  const a = calcularHash('Beca MEXT 2026', 'https://www.bo.emb-japan.go.jp/becas');
+  const b = calcularHash('Beca MEXT 2026', 'https://bo.emb-japan.go.jp/otra-pagina');
+  assert.equal(a, b);
+});
+
+test('dedupe: ignora tildes, mayusculas y puntuacion', () => {
+  const a = calcularHash('Beca de Japón — 2026', 'https://ejemplo.com');
+  const b = calcularHash('beca de japon 2026', 'https://ejemplo.com');
+  assert.equal(a, b);
+});
+
+test('dedupe: distinta institucion se conserva por separado', () => {
+  const a = calcularHash('Beca de intercambio', 'https://upb.edu/x');
+  const b = calcularHash('Beca de intercambio', 'https://ucb.edu.bo/x');
+  assert.notEqual(a, b);
+});
+
+// ---------------------------------------------------------------------------
+test('AppError: conserva status y codigo', () => {
+  const error = AppError.badRequest('faltan datos', { campo: 'carrera' });
+  assert.equal(error.status, 400);
+  assert.equal(error.code, 'bad_request');
+  assert.deepEqual(error.details, { campo: 'carrera' });
+  assert.ok(error instanceof Error);
+});

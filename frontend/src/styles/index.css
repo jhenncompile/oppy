@@ -1,0 +1,48 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-surface-page text-ink font-sans antialiased;
+  }
+
+  /* El foco visible es requisito, no adorno: Oppy existe para cerrar una
+   * brecha de acceso y la interfaz no puede abrir otra. */
+  :focus-visible {
+    outline: 2px solid var(--accent-solid);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Panel apilado: el gesto visual que define la pagina. Bloques grandes,
+   * muy redondeados, flotando sobre el fondo calido. */
+  .panel {
+    @apply rounded-panel bg-surface-card shadow-panel;
+  }
+
+  .panel-padding {
+    @apply px-6 py-12 sm:px-12 sm:py-16;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium;
+  }
+}
