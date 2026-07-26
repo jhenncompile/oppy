@@ -89,20 +89,9 @@ services:
         value: 'false'
       - key: CORS_ORIGIN
         sync: false
-      # El agente Oppy servido en Modal. ES LA VARIABLE QUE HACE FUNCIONAR EL
-      # RAZONAMIENTO EN PRODUCCION: si esta seteada, normalizar y puntuar usan
-      # solo Oppy, sin caer a Ollama.
-      #
-      # Dejarla vacia aca no es una opcion como en local: en Render no hay
-      # ningun Ollama corriendo, asi que el agente se quedaria sin modelo y el
-      # scoring caeria al puntaje heuristico por solapamiento de palabras.
+      # Agente Oppy en Modal (unico LLM en produccion). Obligatoria.
+      # Ejemplo: https://pvalencia--oppy-api-oppyservice-web.modal.run
       - key: OPPY_API_URL
-        sync: false
-      # Solo sirven si algun dia se expone un Ollama accesible por red. Hoy
-      # estan por compatibilidad; el camino real es OPPY_API_URL.
-      - key: OLLAMA_URL
-        sync: false
-      - key: OLLAMA_MODEL
         sync: false
       - key: EXA_API_KEY
         sync: false
@@ -142,20 +131,8 @@ services:
       # true no la hace mas segura, solo agrega handshake a cada conexion.
       - key: DATABASE_SSL
         value: 'false'
-      # El agente Oppy servido en Modal. ES LA VARIABLE QUE HACE FUNCIONAR EL
-      # RAZONAMIENTO EN PRODUCCION: si esta seteada, normalizar y puntuar usan
-      # solo Oppy, sin caer a Ollama.
-      #
-      # Dejarla vacia aca no es una opcion como en local: en Render no hay
-      # ningun Ollama corriendo, asi que el agente se quedaria sin modelo y el
-      # scoring caeria al puntaje heuristico por solapamiento de palabras.
+      # Agente Oppy en Modal (unico LLM). Obligatoria.
       - key: OPPY_API_URL
-        sync: false
-      # Solo sirven si algun dia se expone un Ollama accesible por red. Hoy
-      # estan por compatibilidad; el camino real es OPPY_API_URL.
-      - key: OLLAMA_URL
-        sync: false
-      - key: OLLAMA_MODEL
         sync: false
       - key: EXA_API_KEY
         sync: false

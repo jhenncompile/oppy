@@ -19,8 +19,8 @@ const schema = z.object({
   OLLAMA_MODEL: z.string().default('llama3.1:8b'),
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
 
-  // URL publica de serve_oppy_api.py (Colab+ngrok, VPS GPU, etc.).
-  // Si esta set, normalize/match usan el LoRA y caen a Ollama si falla.
+  // Agente Oppy en Modal (LoRA). En produccion es obligatorio.
+  // Si esta set, normalize/match usan SOLO Modal; Ollama queda desactivado.
   OPPY_API_URL: z.string().default(''),
 
   EXA_API_KEY: z.string().default(''),
@@ -37,8 +37,7 @@ const schema = z.object({
   NOTIF_MAX_POR_USUARIO: z.coerce.number().int().positive().default(3),
 
   EXA_RESULTS_PER_QUERY: z.coerce.number().int().positive().default(4),
-  // Tope de paginas a estructurar por corrida: sin esto, 20+ llamadas
-  // secuenciales a Ollama dejan la UI en "Leyendo y estructurando…" minutos.
+  // Tope de paginas a estructurar por corrida (cada una llama al agente Modal).
   MAX_NORMALIZE_PER_RUN: z.coerce.number().int().positive().default(6),
   NORMALIZE_TIMEOUT_MS: z.coerce.number().int().positive().default(180_000),
   MAX_SCORING_PER_RUN: z.coerce.number().int().positive().default(20),
@@ -74,6 +73,13 @@ if (!parsed.success) {
 }
 
 const raw = parsed.data;
+const oppyActivo = looksLikeUrl(raw.OPPY_API_URL);
+
+if (raw.NODE_ENV === 'production' && !oppyActivo) {
+  throw new Error(
+    'OPPY_API_URL es obligatorio en produccion (agente Modal). Sin el, el backend no razona.'
+  );
+}
 
 export const env = {
   ...raw,
@@ -87,7 +93,9 @@ export const env = {
     exa: raw.EXA_API_KEY.length > 0,
     firecrawl: raw.FIRECRAWL_API_KEY.length > 0,
     zavu: raw.ZAVUDEV_API_KEY.length > 0,
-    oppy: looksLikeUrl(raw.OPPY_API_URL),
+    oppy: oppyActivo,
+    // Ollama solo como respaldo local cuando Modal no esta configurado.
+    ollama: !oppyActivo,
     // Acceso usable: con Zavu real, o en desarrollo logueando el codigo.
     acceso:
       raw.ZAVUDEV_API_KEY.length > 0

@@ -43,13 +43,18 @@ Responde solo con JSON.`;
 
 /**
  * Evalua un par (perfil, oportunidad).
- * Con OPPY_API_URL: solo el agente Oppy. Sin URL: Ollama.
+ * Con OPPY_API_URL: solo Modal/LoRA (cualquier perspectiva). Sin URL: Ollama.
  */
 export async function evaluar(perfil, oportunidad, { perspectiva = 'persona' } = {}) {
-  if (env.features.oppy && perspectiva === 'persona') {
+  if (env.features.oppy) {
     const desdeOppy = await evaluarConOppy(perfil, oportunidad);
     if (desdeOppy) return desdeOppy;
-    log.warn('Matching Oppy sin resultado; no se usa Ollama', {
+    log.warn('Matching Oppy sin resultado', { oportunidadId: oportunidad.id });
+    return null;
+  }
+
+  if (!env.features.ollama) {
+    log.warn('Sin Oppy ni Ollama: no se puede evaluar', {
       oportunidadId: oportunidad.id
     });
     return null;

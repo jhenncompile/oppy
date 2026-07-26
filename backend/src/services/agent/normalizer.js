@@ -47,7 +47,7 @@ Reglas estrictas:
 
 /**
  * Convierte un documento crudo en oportunidades normalizadas.
- * Con OPPY_API_URL: solo el agente Oppy (Modal/LoRA). Sin URL: Ollama.
+ * Con OPPY_API_URL: solo Modal/LoRA. Sin URL (solo local): Ollama.
  *
  * Nunca lanza: un documento ilegible no puede tumbar la corrida.
  *
@@ -59,13 +59,18 @@ export async function normalizar(documento, opciones = {}) {
     const desdeOppy = await normalizarConOppy(documento);
     const filtradas = filtrarPorCategorias(desdeOppy, opciones.categorias);
     if (desdeOppy.length > 0 && filtradas.length === 0) {
-      log.info('Oppy extrajo fuera de categoria; se descarta (sin Ollama)', {
+      log.info('Oppy extrajo fuera de categoria; se descarta', {
         url: documento.url,
         categorias: opciones.categorias,
         obtenidas: desdeOppy.map((o) => o.categoria)
       });
     }
     return filtradas;
+  }
+
+  if (!env.features.ollama) {
+    log.warn('Sin Oppy ni Ollama: no se puede normalizar', { url: documento.url });
+    return [];
   }
 
   const lotes = await normalizarConOllama(documento, opciones);

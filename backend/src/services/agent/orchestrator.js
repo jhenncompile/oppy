@@ -1,5 +1,3 @@
-import { z } from 'zod';
-import { completeJson } from '../llm/index.js';
 import { CATEGORIAS } from './normalizer.js';
 import { logger } from '../../utils/logger.js';
 
@@ -7,8 +5,8 @@ const log = logger.child({ module: 'orchestrator' });
 
 /**
  * El objetivo del onboarding es la senal mas fuerte: acota QUE buscar antes
- * de mirar carrera o intereses. Sin este mapa, el modelo (y el plan de
- * respaldo) terminaban buscando becas aunque la persona pidiera empleo.
+ * de mirar carrera o intereses. Sin este mapa, el plan de respaldo terminaba
+ * buscando becas aunque la persona pidiera empleo.
  */
 export const OBJETIVO_A_CATEGORIAS = {
   empleo: ['empleo', 'pasantia'],
@@ -30,95 +28,22 @@ const OBJETIVO_ETIQUETA = {
   evento: 'eventos y hackathons'
 };
 
-const planSchema = z.object({
-  queries: z.array(z.string().min(8).max(200)).min(1).max(4),
-  categorias: z.array(z.enum(CATEGORIAS)).min(1).max(5),
-  razonamiento: z.string().max(400)
-});
-
-const SISTEMA = `Sos el orquestador de un agente que busca oportunidades para
-jovenes en Bolivia. Dado un perfil, decidis QUE buscar y DONDE.
-
-La senal MAS IMPORTANTE es el OBJETIVO del perfil. Todas las busquedas tienen
-que apuntar a ese objetivo. Si pide empleo, buscas empleos y pasantias — NUNCA
-becas. Si pide becas, buscas becas — no empleos.
-
-Genera entre 2 y 3 busquedas en espanol, concretas y orientadas a convocatorias
-reales de Bolivia o abiertas a bolivianos. Incluí el anio actual cuando aporte.
-Evita busquedas genericas: tienen que reflejar el objetivo, la carrera y el nivel.
-
-Elegi SOLO categorias alineadas al objetivo. No agregues categorias de mas.
-
-Si el perfil declara mas de un objetivo, cubri el principal primero y deja al
-menos una busqueda para los demas. No dividas todo en partes iguales: el primero
-es el que la persona puso adelante.
-
-Respeta las restricciones: si dice que solo puede a la maniana o que necesita
-que sea remoto, no generes busquedas que las ignoren.
-
-Responde solo con JSON.`;
-
 /**
  * Decide el plan de busqueda para un perfil.
  *
- * Si el frontend mando objetivos, el plan se arma de forma deterministica
- * desde esos parametros: asi "empleo" nunca termina buscando becas, y no
- * dependemos de que Ollama responda a tiempo. El LLM solo se usa cuando no
- * hay objetivo claro.
+ * Siempre deterministico desde los parametros del frontend/DB. No llama a
+ * Ollama ni a Modal: el plan es reglas + objetivos del onboarding.
  */
 export async function planificar(perfil) {
   const objetivo = objetivoPrincipal(perfil);
-  if (objetivo && OBJETIVO_A_CATEGORIAS[objetivo]) {
-    const plan = planDesdePerfil(perfil);
-    log.info('Plan desde parametros del frontend', {
-      objetivo,
-      objetivos: perfil.objetivos ?? [],
-      queries: plan.queries,
-      categorias: plan.categorias
-    });
-    return plan;
-  }
-
-  const categoriasObjetivo = categoriasPara(perfil);
-  const prompt = [
-    'PERFIL',
-    `Objetivo (senal principal): ${etiquetaObjetivo(objetivo)}`,
-    `Otros objetivos: ${(perfil.objetivos ?? []).slice(1).join(', ') || 'ninguno'}`,
-    `Carrera: ${perfil.carrera}`,
-    `Nivel de estudios: ${perfil.nivelEstudios}`,
-    `Ubicacion: ${perfil.ubicacion}`,
-    `Experiencia: ${(perfil.experiencia ?? []).join(', ') || 'sin especificar'}`,
-    `Habilidades: ${(perfil.habilidades ?? []).map((h) => String(h).replace(/_/g, ' ')).join(', ') || 'sin especificar'}`,
-    `Intereses: ${(perfil.intereses ?? []).join(', ') || 'sin especificar'}`,
-    `Restricciones: ${(perfil.restricciones ?? []).join(', ') || 'ninguna'}`,
-    `Anio actual: ${new Date().getFullYear()}`,
-    '',
-    `Categorias permitidas para este objetivo: ${categoriasObjetivo.join(', ')}`,
-    '',
-    'Devolve JSON con esta forma exacta:',
-    '{"queries":[""],"categorias":[""],"razonamiento":""}'
-  ].join('\n');
-
-  try {
-    const plan = await completeJson({
-      system: SISTEMA,
-      prompt,
-      schema: planSchema,
-      temperature: 0.4,
-      timeoutMs: 45_000
-    });
-
-    const alineado = alinearConObjetivo(plan, perfil);
-    log.info('Plan generado', {
-      queries: alineado.queries.length,
-      categorias: alineado.categorias,
-      objetivo: objetivo ?? null
-    });
-    return alineado;
-  } catch (error) {
-    log.warn('Planificacion fallida, se usa el plan de respaldo', { error: error.message });
-    return planDesdePerfil(perfil);
-  }
+  const plan = planDesdePerfil(perfil);
+  log.info('Plan desde parametros del frontend', {
+    objetivo,
+    objetivos: perfil.objetivos ?? [],
+    queries: plan.queries,
+    categorias: plan.categorias
+  });
+  return plan;
 }
 
 /** Primer objetivo del onboarding (el principal) o el campo legacy singular. */

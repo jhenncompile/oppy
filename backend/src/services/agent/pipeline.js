@@ -13,8 +13,8 @@ import * as runTracker from './runTracker.js';
 
 const log = logger.child({ module: 'pipeline' });
 
-// En local Ollama no aguanta bien 2 extracciones a la vez: se pisan y
-// terminan en timeout → 0 oportunidades. Una a la vez es mas lento pero fiable.
+// Modal (T4) atiende 1 inferencia a la vez; paralelizar extract/match satura
+// el endpoint y produce 408. Una a la vez es mas lento pero fiable.
 const CONCURRENCIA_NORMALIZACION = 1;
 const CONCURRENCIA_SCORING = 1;
 
@@ -101,9 +101,8 @@ async function correr({ perfil, corrida, disparador }) {
     paso({ tipo: 'indice', mensaje: `${nuevas} nuevas para el indice`, nuevas });
     await ritmo();
 
-    // 5. Razonar sobre compatibilidad.
-    // En demo solo se salta el scraping: el scoring sigue yendo a Ollama para
-    // que el camino local sin LoRA remoto sea el mismo que produccion.
+    // 5. Razonar sobre compatibilidad (agente Modal / Oppy).
+    // En demo solo se salta el scraping; el scoring sigue yendo al LoRA.
     paso({ tipo: 'scoring_inicio', mensaje: 'Evaluando cuales son para vos' });
     const matches = await puntuarParaPerfil(perfil, plan.categorias, evaluarSeguro);
     paso({

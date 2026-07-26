@@ -6,8 +6,8 @@ const log = logger.child({ module: 'oppy-api' });
 /**
  * Cliente HTTP hacia la API LoRA de Oppy (Modal / serve_oppy_api.py).
  *
- * Si OPPY_API_URL no esta o el servicio cae, devolvemos null. El caller
- * decide el fallback: con Oppy activo el producto NO debe caer a Ollama.
+ * Si OPPY_API_URL no esta o el servicio cae, devolvemos null.
+ * Con Oppy activo el producto no usa Ollama.
  *
  * El header ngrok-skip-browser-warning evita la pagina interstitial del plan
  * free de ngrok, que rompe el JSON.

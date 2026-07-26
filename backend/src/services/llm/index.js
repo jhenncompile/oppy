@@ -15,8 +15,17 @@ if (!provider) {
   throw new Error(`Proveedor de LLM desconocido: ${env.LLM_PROVIDER}`);
 }
 
+function asegurarOllamaPermitido() {
+  if (env.features.oppy) {
+    throw AppError.unavailable(
+      'Ollama deshabilitado: OPPY_API_URL activo; usar solo el agente Modal'
+    );
+  }
+}
+
 /** Texto libre. Rara vez es lo que queremos: preferir completeJson. */
 export async function complete(options) {
+  asegurarOllamaPermitido();
   const startedAt = Date.now();
   const text = await provider.complete(options);
   log.debug('Completion', { provider: provider.name, ms: Date.now() - startedAt });
@@ -30,6 +39,8 @@ export async function complete(options) {
  * equivocado. El schema de Zod es la frontera: lo que no lo cruza, no entra
  * al sistema. Ante un fallo se reintenta una vez devolviendole el error al
  * modelo, que es lo que suele bastar.
+ *
+ * Con OPPY_API_URL activo esta API no se usa: el producto va por Modal.
  */
 export async function completeJson({
   system,
@@ -38,6 +49,7 @@ export async function completeJson({
   temperature = 0.2,
   timeoutMs
 }) {
+  asegurarOllamaPermitido();
   const intentar = async (promptEfectivo) => {
     const raw = await provider.complete({
       system,

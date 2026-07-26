@@ -27,7 +27,7 @@ export async function descubrir({ queries, categorias }, onPaso = () => {}) {
   const paraScrapear = fuentesPorEstrategia(ESTRATEGIAS.SCRAPE, { categorias });
   const paraBuscar = fuentesPorEstrategia(ESTRATEGIAS.BUSQUEDA, { categorias });
   // Menos queries × menos resultados = menos paginas a normalizar (el cuello
-  // de botella es Ollama, no Exa).
+  // de botella es Modal/inferencia, no Exa).
   const queriesEfectivas = queries.slice(0, 2);
   const busquedas = [...combinacionesDeBusqueda(paraBuscar, queriesEfectivas).values()];
   const resultadosPorQuery = Math.min(env.EXA_RESULTS_PER_QUERY, 4);

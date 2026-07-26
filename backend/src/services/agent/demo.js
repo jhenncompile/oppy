@@ -3,10 +3,10 @@
  *
  * Existe por una razon concreta: sin claves de Exa/Firecrawl el pipeline
  * descubre cero paginas y produce cero matches — indistinguible de estar
- * roto cuando lo que se quiere es revisar el diseno o probar Ollama.
+ * roto cuando lo que se quiere es revisar el diseno.
  *
  * Con DEMO_MODE=true se reemplaza el descubrimiento + normalizacion por este
- * catalogo. El scoring sigue yendo al LLM (Ollama / Oppy) via `evaluarSeguro`.
+ * catalogo. El scoring sigue yendo al agente Modal via `evaluarSeguro`.
  *
  * Todo lo demas es el camino real: el indice compartido, la deduplicacion por
  * hash, el semaforo de confianza, la persistencia de matches y la narracion en
